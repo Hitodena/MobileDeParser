@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Set
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -121,7 +121,7 @@ class CalculationConfig(BaseModel):
 
 class ApiConfig(BaseModel):
     telegram: str = Field(...)
-    tg_users: list[int] = Field(default=[])
+    tg_users: Set[int] = Field(default=set())
 
 
 class ConfigModel(BaseModel):
