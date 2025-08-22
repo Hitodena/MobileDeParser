@@ -112,9 +112,14 @@ class CalculationConfig(BaseModel):
     )
 
 
+class ApiConfig(BaseModel):
+    telegram: str = Field(...)
+
+
 class ConfigModel(BaseModel):
     logging: LoggingConfig
     parser: ParserConfig
     files: FilesConfig
     templates: TemplatesConfig
     calculation: CalculationConfig
+    api: ApiConfig

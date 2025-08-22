@@ -1,9 +1,11 @@
 import sys
+from pathlib import Path
 from typing import Dict, Literal, Optional
 
 from loguru import logger
 
 from utils.config import config
+
 
 def init_logger(
     console_level: Literal[
@@ -20,6 +22,7 @@ def init_logger(
     diagnose: bool = False,
     enqueue: bool = True,
     modules: Optional[Dict[str, str]] = None,
+    log_dir: Path = Path("logs"),
 ) -> None:
 
     logger.remove()
@@ -50,7 +53,7 @@ def init_logger(
     )
 
     logger.add(
-        config.logging.log_dir / "app.log",
+        log_dir / "app.log",
         level=file_level,
         format=file_format,
         rotation=rotation,
@@ -63,7 +66,7 @@ def init_logger(
     )
 
     logger.add(
-        config.logging.log_dir / "errors.log",
+        log_dir / "errors.log",
         level="ERROR",
         format=file_format,
         rotation="5 MB",
@@ -78,7 +81,7 @@ def init_logger(
     if modules:
         for module_name, level in modules.items():
             logger.add(
-                config.logging.log_dir / f"{module_name}.log",
+                log_dir / f"{module_name}.log",
                 level=level,
                 format=file_format,
                 filter=lambda record: record["name"] == module_name,
@@ -92,15 +95,27 @@ def init_logger(
             )
 
 
-def setup_default_logger() -> None:
+def setup_default_logger(
+    console_level,
+    file_level,
+    diagnose,
+    enqueue,
+    rotation,
+    retention,
+    compression,
+    serialize,
+    backtrace,
+    log_dir,
+) -> None:
     init_logger(
-        console_level=config.logging.level,
-        file_level=config.logging.level,
-        diagnose=config.logging.diagnose,
-        enqueue=config.logging.enqueue,
-        rotation=config.logging.rotation,
-        retention=config.logging.retention,
-        compression=config.logging.compression,
-        serialize=config.logging.serialize,
-        backtrace=config.logging.backtrace,
+        console_level=console_level,
+        file_level=file_level,
+        diagnose=diagnose,
+        enqueue=enqueue,
+        rotation=rotation,
+        retention=retention,
+        compression=compression,
+        serialize=serialize,
+        backtrace=backtrace,
+        log_dir=log_dir,
     )
