@@ -27,10 +27,11 @@ class LoggingConfig(BaseModel):
 
 
 class ParserConfig(BaseModel):
-    base_url: str = Field(default="https://www.mobile.de")
+    base_url: str = Field(default="https://www.mobile.de/")
     base_search_url: str = Field(
-        default="https://www.mobile.de/ru/категория/автомобиль/vhc:car"
+        default="https://www.mobile.de/ru/категория/автомобиль/vhc:car/"
     )
+    check_url: str = Field(default="https://www.mobile.de/ru/")
     timeout: int = Field(default=15)
     retries: int = Field(default=3)
     delay_min: int = Field(default=100)
@@ -38,6 +39,12 @@ class ParserConfig(BaseModel):
     max_concurrency: int = Field(default=5)
     exclude_ads_pictures: int = Field(default=-1)
     proxy_file: Path = Field(default=Path("proxies.txt"))
+    proxy_timeout: int = Field(default=5)
+
+    @field_validator("proxy_file", mode="after")
+    @classmethod
+    def validate_proxy_file(cls, v: str) -> Path:
+        return Path(v).resolve()
 
 
 class FilesConfig(BaseModel):

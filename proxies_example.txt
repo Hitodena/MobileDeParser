@@ -1,0 +1,7 @@
+# Example
+# Formats:
+# http://host:port
+# http://user:pass@host:port
+
+# http://proxy1.example.com:8080
+# http://user1:pass1@proxy2.example.com:8080
