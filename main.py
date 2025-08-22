@@ -1,5 +1,5 @@
-from services.logger import setup_default_logger
-from utils.config import config
+from shared.config.config import config
+from shared.services.logger import setup_default_logger
 
 setup_default_logger(
     config.logging.level,

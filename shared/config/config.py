@@ -3,7 +3,7 @@ from typing import Optional
 
 import yaml
 
-from models.config_model import ConfigModel
+from shared.config.config_model import ConfigModel
 
 
 class ConfigLoader:
@@ -20,7 +20,7 @@ class ConfigLoader:
             return
 
         if config_path is None:
-            root = Path(__file__).parent.parent.resolve()
+            root = Path(__file__).parent.parent.parent.resolve()
             self._config_path = root / "configuration.yaml"
             if not self._config_path.exists():
                 raise FileNotFoundError(

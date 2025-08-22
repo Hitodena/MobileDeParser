@@ -4,8 +4,6 @@ from typing import Dict, Literal, Optional
 
 from loguru import logger
 
-from utils.config import config
-
 
 def init_logger(
     console_level: Literal[

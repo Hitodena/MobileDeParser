@@ -114,6 +114,7 @@ class CalculationConfig(BaseModel):
 
 class ApiConfig(BaseModel):
     telegram: str = Field(...)
+    tg_users: list[int] = Field(default=[])
 
 
 class ConfigModel(BaseModel):

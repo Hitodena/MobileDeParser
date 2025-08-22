@@ -15,3 +15,6 @@ configuration_*.yaml
 tmp
 var
 logs
+
+# Working files
+proxies.txt
