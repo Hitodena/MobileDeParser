@@ -10,7 +10,9 @@ from shared.utils.generate_headers import generate_headers
 
 
 class ProxyManager:
-    def __init__(self, proxy_file: Path, timeout: int, check_url: str) -> None:
+    def __init__(
+        self, proxy_file: Path, timeout: float, check_url: str
+    ) -> None:
         self.proxy_file = proxy_file
         self.timeout = ClientTimeout(total=timeout)
         self.check_url = check_url

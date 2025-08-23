@@ -34,12 +34,14 @@ class ParserConfig(BaseModel):
     check_url: str = Field(default="https://www.mobile.de/ru/")
     timeout: int = Field(default=15)
     retries: int = Field(default=3)
-    delay_min: int = Field(default=100)
-    delay_max: int = Field(default=500)
+    delay_min: float = Field(default=0.1)
+    delay_max: float = Field(default=0.5)
     max_concurrency: int = Field(default=5)
     exclude_ads_pictures: int = Field(default=-1)
     proxy_file: Path = Field(default=Path("proxies.txt"))
-    proxy_timeout: int = Field(default=5)
+    proxy_timeout: float = Field(default=5)
+    interval_between_parse: float = Field(default=1800)
+    cycle: bool = Field(default=True)
 
     @field_validator("proxy_file", mode="after")
     @classmethod
@@ -97,26 +99,8 @@ class TemplatesConfig(BaseModel):
     )
 
 
-class GasolineCalculationConfig(BaseModel):
-    discount: float = Field(default=1.23)
-    old_price: float = Field(default=0)
-    expenses: float = Field(default=0)
-
-
-class ElectricCalculationConfig(BaseModel):
-    discount: float = Field(default=1.23)
-    expenses: float = Field(default=0)
-    tax: float = Field(default=0)
-
-
 class CalculationConfig(BaseModel):
     currency_exchange: float = Field(default=0.24)
-    gasoline: GasolineCalculationConfig = Field(
-        default=GasolineCalculationConfig()
-    )
-    electric: ElectricCalculationConfig = Field(
-        default=ElectricCalculationConfig()
-    )
 
 
 class ApiConfig(BaseModel):

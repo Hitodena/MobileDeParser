@@ -16,35 +16,33 @@ from shared.utils.proxy_manager import ProxyManager
 
 class HTTPClient:
     def __init__(
-        self, base_url: str, proxy_manager: ProxyManager, timeout: int
+        self, proxy_manager: ProxyManager, timeout: int, retries: int
     ) -> None:
-        self.base_url = base_url
         self.proxy_manager = proxy_manager
         self._session: Optional[ClientSession] = None
         self.timeout = ClientTimeout(total=timeout)
+        self.retries = retries
 
     def _get_headers(self) -> Dict[str, str]:
         return generate_headers()
 
     def _create_session(self) -> ClientSession:
         return ClientSession(
-            base_url=self.base_url,
             headers=self._get_headers(),
             timeout=self.timeout,
         )
 
-    async def get_content(self, url: str, retries: int) -> str:
+    async def get_content(self, url: str) -> str:
         request_logger = logger.bind(
             url=url,
-            base_url=self.base_url,
-            max_retries=retries,
+            max_retries=self.retries,
             available_proxies=(self.proxy_manager.proxy_count),
         )
 
         last_exception = None
         request_logger.info("Starting request")
 
-        for attempt in range(retries + 1):
+        for attempt in range(self.retries + 1):
             proxy = None
             if self.proxy_manager and self.proxy_manager.has_proxies:
                 is_first_attempt = attempt == 0
@@ -109,7 +107,7 @@ class HTTPClient:
                 ).warning("Unexpected error occurred")
 
             # Retry logic
-            if attempt < retries:
+            if attempt < self.retries:
                 wait_time = min(2**attempt, 5)
                 attempt_logger.bind(wait_time=wait_time).info(
                     "Retrying request"
@@ -123,7 +121,3 @@ class HTTPClient:
         ).error("All retry attempts failed")
 
         raise last_exception or RequestException("All attempts failed")
-
-    async def close(self) -> None:
-        if self._session and not self._session.closed:
-            await self._session.close()

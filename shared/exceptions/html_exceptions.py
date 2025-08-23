@@ -1,0 +1,2 @@
+class HTMLParsingError(Exception):
+    pass
