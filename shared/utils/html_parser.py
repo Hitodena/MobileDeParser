@@ -2,17 +2,24 @@ from bs4 import BeautifulSoup
 from bs4.exceptions import FeatureNotFound
 from loguru import logger
 
+from shared.exceptions.html_exceptions import HTMLParsingError
 
-def parse_markup(html: str) -> BeautifulSoup | None:
+
+def parse_markup(html: str) -> BeautifulSoup:
     try:
-        logger.debug("Parsing HTML...")
+        logger.debug("Parsing HTML with lxml...")
         return BeautifulSoup(html, "lxml")
     except FeatureNotFound as e:
-        logger.error(f"HTML parser not found: {e}")
-        return None
+        logger.warning(
+            f"lxml parser not available, falling back to html.parser: {e}"
+        )
+        try:
+            return BeautifulSoup(html, "html.parser")
+        except Exception as fallback_error:
+            raise HTMLParsingError(
+                f"Both lxml and html.parser failed: {fallback_error}"
+            )
     except TypeError as e:
-        logger.error(f"Invalid HTML: {e}")
-        return None
+        raise HTMLParsingError(f"Invalid HTML: {e}")
     except Exception as e:
-        logger.error(f"Error parsing HTML: {e}")
-        return None
+        raise HTMLParsingError(f"Error parsing HTML: {e}")

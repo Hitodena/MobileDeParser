@@ -1,7 +1,5 @@
-import asyncio
-
+from core.parsers.mobilede_ru_parser import MobileDeRuParser
 from shared.config.config import config
-from shared.services.http_client import HTTPClient
 from shared.services.logger import setup_default_logger
 from shared.utils.proxy_manager import ProxyManager
 
