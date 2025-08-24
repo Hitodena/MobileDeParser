@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Literal, Set
+from typing import Dict, List, Literal, Set
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -65,9 +65,9 @@ class FilesConfig(BaseModel):
 
     @field_validator("files_dir", mode="after")
     @classmethod
-    def validate_files_dir(cls, v: Path) -> None:
+    def validate_files_dir(cls, v: Path) -> Path:
         v.mkdir(parents=True, exist_ok=True)
-        return None
+        return Path(v).resolve()
 
     @field_validator(
         "brand_excludes_file",
@@ -77,10 +77,10 @@ class FilesConfig(BaseModel):
         mode="after",
     )
     @classmethod
-    def validate_files(cls, v: Path) -> None:
+    def validate_files(cls, v: Path) -> Path:
         if not v.exists():
             raise FileNotFoundError(f"File does not exist: {v}")
-        return None
+        return Path(v).resolve()
 
 
 class TemplatesConfig(BaseModel):
@@ -108,6 +108,12 @@ class ApiConfig(BaseModel):
     tg_users: Set[int] = Field(default=set())
 
 
+class DataConfig(BaseModel):
+    replacement_rules: Dict[str, str] = Field(default_factory=dict)
+    dealer_exclusions: List[str] = Field(default_factory=list)
+    image_exclusions: Dict[str, Dict[str, str]] = Field(default_factory=dict)
+
+
 class ConfigModel(BaseModel):
     logging: LoggingConfig
     parser: ParserConfig
@@ -115,3 +121,4 @@ class ConfigModel(BaseModel):
     templates: TemplatesConfig
     calculation: CalculationConfig
     api: ApiConfig
+    data: DataConfig = Field(default_factory=DataConfig)

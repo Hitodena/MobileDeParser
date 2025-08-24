@@ -1,7 +1,5 @@
-from core.parsers.mobilede_ru_parser import MobileDeRuParser
 from shared.config.config import config
 from shared.services.logger import setup_default_logger
-from shared.utils.proxy_manager import ProxyManager
 
 setup_default_logger(
     config.logging.level,
@@ -14,10 +12,4 @@ setup_default_logger(
     config.logging.serialize,
     config.logging.backtrace,
     config.logging.log_dir,
-)
-
-proxy_manager = ProxyManager(
-    config.parser.proxy_file,
-    config.parser.proxy_timeout,
-    config.parser.check_url,
 )
