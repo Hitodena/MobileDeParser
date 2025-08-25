@@ -72,7 +72,6 @@ class HTTPClient:
                         attempt_logger.bind(
                             status_code=response.status,
                             content_length=len(content),
-                            response_headers=dict(response.headers),
                         ).success("Request completed successfully")
 
                         return content

@@ -1,4 +1,3 @@
-
 from typing import Dict, List, Optional
 
 from loguru import logger
@@ -8,7 +7,6 @@ from shared.config.config_model import ConfigModel
 
 
 class ProductModel(BaseModel):
-    title: str = Field(alias="title", default="")
     category: str = Field(alias="Category", default="")
     model: str = Field(alias="Characteristics: модель", default="")
     year_of_release: str = Field(
@@ -26,17 +24,11 @@ class ProductModel(BaseModel):
         alias="Characteristics: к-во владельцев", default=""
     )
     price: str = Field(alias="Price", default="")
-    text: str = Field(alias="Text", default="")
+    text: List[str] = Field(alias="Text", default_factory=list)
     images: List[str] = Field(alias="Photo", default_factory=list)
     url: str = Field(alias="URL", default="")
     dealer: str = Field(alias="ДИЛЕР", default="")
     sku: str = Field(alias="SKU", default="")
-    seo_title: str = Field(alias="SEO title", default="")
-    seo_description: str = Field(alias="SEO descr", default="")
-    seo_keywords: str = Field(alias="SEO keywords", default="")
-    seo_alt: str = Field(alias="SEO alt", default="")
-    tabs_one: str = Field(alias="Tabs:1", default="")
-    tabs_two: str = Field(alias="Tabs:2", default="")
 
     config: ConfigModel
 
@@ -75,6 +67,16 @@ class ProductModel(BaseModel):
                 fallback_title=fallback,
             )
             return fallback
+
+    @computed_field
+    @property
+    def formatted_tab_one(self) -> str:
+        return self.config.templates.tabs_one  # TODO: add format
+
+    @computed_field
+    @property
+    def formatted_tab_two(self) -> str:
+        return self.config.templates.tabs_two  # TODO: add format
 
     @computed_field
     @property
@@ -172,7 +174,7 @@ class ProductModel(BaseModel):
         )
         return final_text
 
-    def apply_text_replacements(self, text: str) -> str:
+    def apply_text_replacements(self, text: List[str]) -> str:
         if not text:
             return ""
         replacements = self.config.data.replacement_rules
@@ -180,12 +182,14 @@ class ProductModel(BaseModel):
             logger.debug(
                 "No replacement rules available", text_length=len(text)
             )
-            return text
+            return "<br />".join(text)
         result = text
         replacements_made = 0
         for original, replacement in replacements.items():
             if original in result:
-                result = result.replace(original, replacement)
+                result = [
+                    item.replace(original, replacement) for item in result
+                ]
                 replacements_made += 1
         logger.debug(
             "Text replacements applied",
@@ -194,7 +198,7 @@ class ProductModel(BaseModel):
             replacements_made=replacements_made,
             total_rules=len(replacements),
         )
-        return result
+        return "<br />".join(result)
 
     def is_dealer_excluded(self) -> bool:
         dealer_exclusions = self.config.data.dealer_exclusions
@@ -341,9 +345,9 @@ class ProductModel(BaseModel):
                 "SEO title": self.formatted_seo_title,
                 "SEO descr": self.formatted_seo_description,
                 "SEO keywords": self.formatted_seo_keywords,
-                "SEO alt": self.seo_alt or self.formatted_title,
-                "Tabs:1": self.tabs_one,
-                "Tabs:2": self.tabs_two,
+                "SEO alt": self.formatted_title,
+                "Tabs:1": self.formatted_tab_one,
+                "Tabs:2": self.formatted_tab_two,
             }
             logger.info(
                 "CSV dictionary created successfully",

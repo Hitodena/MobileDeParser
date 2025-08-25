@@ -28,7 +28,6 @@ class ProxyManager:
         if not formatted_proxy:
             return None
 
-        # Create contextual logger for this proxy check
         headers = generate_headers()
         proxy_logger = logger.bind(
             proxy=proxy_string,

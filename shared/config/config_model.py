@@ -97,6 +97,8 @@ class TemplatesConfig(BaseModel):
     start_text: str = Field(
         default='<span style="color:#ff0000"><strong>ВНИМАНИЕ!!!<br />Цена авто указана в Европе, без таможни и доставки<br />Для расчёта полной цены - нажмите кнопку ЗАПРОС</strong></span><br /><br />'
     )
+    tabs_one: str = Field(default="info|#|ИНФОРМАЦИЯ|#|")
+    tabs_two: str = Field(default="info|#|ИНФОРМАЦИЯ|#|")
 
 
 class CalculationConfig(BaseModel):
