@@ -16,7 +16,7 @@ from shared.utils.proxy_manager import ProxyManager
 
 class HTTPClient:
     def __init__(
-        self, proxy_manager: ProxyManager, timeout: int, retries: int
+        self, proxy_manager: ProxyManager, timeout: int | float, retries: int
     ) -> None:
         self.proxy_manager = proxy_manager
         self._session: Optional[ClientSession] = None

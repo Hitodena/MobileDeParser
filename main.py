@@ -13,3 +13,5 @@ setup_default_logger(
     config.logging.backtrace,
     config.logging.log_dir,
 )
+
+print(config.data)

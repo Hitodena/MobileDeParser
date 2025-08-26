@@ -1,10 +1,12 @@
 import json
-from typing import Dict, List, Union
+from typing import Dict, List, Optional
 from urllib.parse import urljoin
 
 from bs4.element import Tag
 
+from core.models.product_model import ProductModel
 from core.parsers.base_parser import BaseParser
+from shared.config.config import config
 
 
 class MobileDeRuParser(BaseParser):
@@ -57,7 +59,7 @@ class MobileDeRuParser(BaseParser):
 
     def parse_for_data(
         self,
-    ) -> Dict[str, Union[str, int, float, List[str], None]]:
+    ) -> Optional[ProductModel]:
         data = {
             "category": "",
             "model": "",
@@ -83,7 +85,8 @@ class MobileDeRuParser(BaseParser):
             self.mobilede_logger.bind(
                 error_type="no_html_content",
             ).warning("No HTML content available for data parsing")
-            return data
+            data["config"] = config
+            return ProductModel(**data)
 
         try:
             self._extract_title_fields(data)
@@ -110,7 +113,8 @@ class MobileDeRuParser(BaseParser):
             extracted_fields=list(data.keys()),
         ).success("Data parsing completed")
 
-        return data
+        data["config"] = config
+        return ProductModel(**data)
 
     def _extract_title_fields(self, data: Dict) -> None:
         try:
@@ -385,4 +389,4 @@ class MobileDeRuParser(BaseParser):
         if href.startswith("http"):
             return href
         else:
-            return urljoin(self.url, href)
+            return urljoin(self.base_url, href)

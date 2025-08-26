@@ -4,6 +4,7 @@ from loguru import logger
 from pydantic import BaseModel, Field, computed_field
 
 from shared.config.config_model import ConfigModel
+from shared.exceptions.model_exceptions import ModelExclusionError
 
 
 class ProductModel(BaseModel):
@@ -214,6 +215,50 @@ class ProductModel(BaseModel):
         )
         return excluded
 
+    def is_brand_excluded(self) -> bool:
+        brand_exclusions = self.config.data.brand_exclusions
+        if not brand_exclusions:
+            logger.debug("No brand exclusions configured", brand=self.model)
+            return False
+        excluded = self.model in brand_exclusions
+        logger.debug(
+            "Brand exclusion check completed",
+            brand=self.model,
+            is_excluded=excluded,
+            total_exclusions=len(brand_exclusions),
+        )
+        return excluded
+
+    def check_exclusions(self) -> None:
+        if self.is_dealer_excluded():
+            logger.warning(
+                "Product excluded due to dealer exclusion",
+                dealer=self.dealer,
+                model=self.model,
+                url=self.url,
+            )
+            raise ModelExclusionError(
+                f"Dealer '{self.dealer}' is in exclusion list"
+            )
+
+        if self.is_brand_excluded():
+            logger.warning(
+                "Product excluded due to brand exclusion",
+                brand=self.model,
+                dealer=self.dealer,
+                url=self.url,
+            )
+            raise ModelExclusionError(
+                f"Brand '{self.model}' is in exclusion list"
+            )
+
+        logger.debug(
+            "Product passed all exclusion checks",
+            dealer=self.dealer,
+            brand=self.model,
+            url=self.url,
+        )
+
     def get_processed_images(self) -> List[str]:
         if not self.images:
             logger.debug("No images to process")
@@ -321,6 +366,8 @@ class ProductModel(BaseModel):
 
     def to_csv_dict(self) -> Dict[str, str]:
         try:
+            self.check_exclusions()
+
             processed_images = self.get_processed_images()
             csv_dict = {
                 "Title": self.formatted_title,
@@ -356,6 +403,14 @@ class ProductModel(BaseModel):
                 text_length=len(csv_dict.get("Text", "")),
             )
             return csv_dict
+        except ModelExclusionError:
+            logger.warning(
+                "Product excluded due to exclusion checks",
+                dealer=self.dealer,
+                brand=self.model,
+                url=self.url,
+            )
+            return {}
         except Exception as e:
             logger.error(
                 "Failed to create CSV dictionary",

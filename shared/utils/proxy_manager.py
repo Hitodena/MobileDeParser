@@ -11,14 +11,13 @@ from shared.utils.generate_headers import generate_headers
 
 class ProxyManager:
     def __init__(
-        self, proxy_file: Path, timeout: float, check_url: str
+        self, proxy_file: Path, timeout: int | float, check_url: str
     ) -> None:
         self.proxy_file = proxy_file
         self.timeout = ClientTimeout(total=timeout)
         self.check_url = check_url
         self.valid_proxies: List[str] = []
         self._current_proxy_index = 0
-        asyncio.run(self.load_and_verify_proxies())
 
     async def check_proxy(self, proxy_string: str) -> str | None:
         if not proxy_string:
@@ -168,6 +167,9 @@ class ProxyManager:
     @property
     def proxy_count(self) -> int:
         return len(self.valid_proxies)
+
+    async def initialize(self) -> None:
+        await self.load_and_verify_proxies()
 
     def _format_proxy_for_aiohttp(self, proxy_string: str) -> str | None:
         if "://" not in proxy_string:

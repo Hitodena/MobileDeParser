@@ -1,10 +1,11 @@
 import re
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from bs4.element import PageElement
 from loguru import logger
 
+from core.models.product_model import ProductModel
 from shared.utils.html_parser import parse_markup
 
 
@@ -14,10 +15,9 @@ class BaseParser(ABC):
         self.base_url = base_url.rstrip("/")
         self.url = url.rstrip("/")
 
-        # Create contextual logger for parser initialization
         self.parser_logger = logger.bind(
             parser_class=self.__class__.__name__,
-            base_url=self.base_url,
+            url=self.url,
         )
 
         self.html = parse_markup(raw_html)
@@ -179,5 +179,5 @@ class BaseParser(ABC):
     @abstractmethod
     def parse_for_data(
         self,
-    ) -> Dict[str, Union[str, int, float, List[str], None]]:
+    ) -> Optional[ProductModel]:
         pass
