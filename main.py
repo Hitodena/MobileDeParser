@@ -12,6 +12,5 @@ setup_default_logger(
     config.logging.serialize,
     config.logging.backtrace,
     config.logging.log_dir,
+    config.logging.modules,
 )
-
-print(config.data)

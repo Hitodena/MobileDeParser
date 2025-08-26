@@ -19,6 +19,7 @@ class LoggingConfig(BaseModel):
     backtrace: bool = Field(default=True)
     diagnose: bool = Field(default=False)
     enqueue: bool = Field(default=True)
+    modules: List[str] = Field(default=[])
 
     @field_validator("log_dir", mode="after")
     @classmethod

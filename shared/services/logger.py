@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-from typing import Dict, Literal, Optional
+from typing import List, Literal, Optional
 
 from loguru import logger
 
@@ -19,7 +19,7 @@ def init_logger(
     backtrace: bool = True,
     diagnose: bool = False,
     enqueue: bool = True,
-    modules: Optional[Dict[str, str]] = None,
+    modules: Optional[List[str]] = None,
     log_dir: Path = Path("logs"),
 ) -> None:
 
@@ -77,10 +77,10 @@ def init_logger(
     )
 
     if modules:
-        for module_name, level in modules.items():
+        for module_name in modules:
             logger.add(
                 log_dir / f"{module_name}.log",
-                level=level,
+                level=file_level,
                 format=file_format,
                 filter=lambda record: record["name"] == module_name,
                 rotation=rotation,
@@ -104,6 +104,7 @@ def setup_default_logger(
     serialize,
     backtrace,
     log_dir,
+    modules,
 ) -> None:
     init_logger(
         console_level=console_level,
@@ -116,4 +117,5 @@ def setup_default_logger(
         serialize=serialize,
         backtrace=backtrace,
         log_dir=log_dir,
+        modules=modules,
     )
