@@ -367,8 +367,14 @@ class ProductModel(BaseModel):
     def to_csv_dict(self) -> Dict[str, str]:
         try:
             self.check_exclusions()
-
             processed_images = self.get_processed_images()
+
+            if not processed_images:
+                raise ModelExclusionError("No minimal images requirements")
+
+            if not self.dealer:
+                raise ModelExclusionError("No dealer available")
+
             csv_dict = {
                 "Title": self.formatted_title,
                 "Category": self.category,

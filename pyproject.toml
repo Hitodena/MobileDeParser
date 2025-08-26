@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "aiohttp>=3.12.15",
+    "aiogram>=3.0.0",
     "bs4>=0.0.2",
     "fake-useragent>=2.2.0",
     "loguru>=0.7.3",

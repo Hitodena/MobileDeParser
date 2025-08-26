@@ -3,7 +3,12 @@ import random
 from pathlib import Path
 from typing import List
 
-from aiohttp import ClientError, ClientSession, ClientTimeout
+from aiohttp import (
+    ClientError,
+    ClientResponseError,
+    ClientSession,
+    ClientTimeout,
+)
 from loguru import logger
 
 from shared.utils.generate_headers import generate_headers
@@ -17,6 +22,7 @@ class ProxyManager:
         self.timeout = ClientTimeout(total=timeout)
         self.check_url = check_url
         self.valid_proxies: List[str] = []
+        self.failed_proxies: set[str] = set()
         self._current_proxy_index = 0
 
     async def check_proxy(self, proxy_string: str) -> str | None:
@@ -46,6 +52,13 @@ class ProxyManager:
                     response.raise_for_status()
                     return proxy_string
 
+        except ClientResponseError as e:
+            proxy_logger.bind(
+                error_type="http_error",
+                status_code=e.status,
+                error_class=type(e).__name__,
+            ).warning(f"Proxy HTTP error: {e.status}")
+            self.mark_proxy_as_failed(proxy_string)
         except ClientError as e:
             proxy_logger.bind(
                 error_type="client_error", error_class=type(e).__name__
@@ -61,7 +74,6 @@ class ProxyManager:
             return None
 
     async def load_and_verify_proxies(self) -> None:
-        # Create contextual logger for proxy loading
         loader_logger = logger.bind(
             proxy_file=str(self.proxy_file),
             check_url=self.check_url,
@@ -175,3 +187,12 @@ class ProxyManager:
         if "://" not in proxy_string:
             return f"http://{proxy_string}"
         return proxy_string
+
+    def mark_proxy_as_failed(self, proxy: str) -> None:
+        if proxy:
+            self.failed_proxies.add(proxy)
+            if proxy in self.valid_proxies:
+                self.valid_proxies.remove(proxy)
+                logger.bind(proxy=proxy).warning(
+                    "Proxy marked as failed and removed from pool"
+                )

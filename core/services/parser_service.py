@@ -1,6 +1,6 @@
 import asyncio
 from pathlib import Path
-from typing import List, Optional, Type
+from typing import Callable, List, Optional, Tuple, Type
 
 from loguru import logger
 
@@ -17,12 +17,14 @@ class ParserService:
         self.proxy_manager = ProxyManager(
             proxy_file=config_obj.parser.proxy_file,
             timeout=config_obj.parser.proxy_timeout,
-            check_url=config_obj.parser.base_url,
+            check_url=config_obj.parser.check_url,
         )
         self.http_client = HTTPClient(
             proxy_manager=self.proxy_manager,
             timeout=config_obj.parser.proxy_timeout,
             retries=config_obj.parser.retries,
+            delay_min=config_obj.parser.delay_min,
+            delay_max=config_obj.parser.delay_max,
         )
 
         self.request_semaphore = asyncio.Semaphore(
@@ -34,10 +36,30 @@ class ParserService:
             max_concurrency=config_obj.parser.max_concurrency,
         )
         self.config_obj = config_obj
+        self.progress_callback: Optional[Callable[[int, int, int], None]] = (
+            None
+        )
 
     async def initialize(self) -> None:
         await self.proxy_manager.initialize()
         self.service_logger.info("Parser service initialized")
+
+    def set_progress_callback(self, callback: Callable[[int, int, int], None]):
+        self.progress_callback = callback
+
+    def _update_progress(
+        self,
+        processed_urls: int,
+        found_products: int,
+        total_links_found: int = 0,
+    ):
+        if self.progress_callback:
+            try:
+                self.progress_callback(
+                    processed_urls, found_products, total_links_found
+                )
+            except Exception as e:
+                self.service_logger.error(f"Progress callback error: {e}")
 
     async def parse_links_from_url(
         self, url: str, parser_class: Type[BaseParser]
@@ -142,6 +164,7 @@ class ParserService:
         ).info("Starting batch product parsing")
 
         all_products = []
+        processed_urls = 0
 
         for i in range(0, len(urls), self.config_obj.parser.max_concurrency):
             batch_urls = urls[i : i + self.config_obj.parser.max_concurrency]
@@ -161,6 +184,7 @@ class ParserService:
             )
 
             for j, result in enumerate(batch_results):
+                processed_urls += 1
                 if isinstance(result, Exception):
                     self.service_logger.bind(
                         url=batch_urls[j],
@@ -170,21 +194,7 @@ class ParserService:
                 elif isinstance(result, ProductModel):
                     all_products.append(result)
 
-            if i + self.config_obj.parser.max_concurrency < len(urls):
-                delay = self.config_obj.parser.delay_min + (
-                    self.config_obj.parser.delay_max
-                    - self.config_obj.parser.delay_min
-                ) * (i // self.config_obj.parser.max_concurrency) / (
-                    len(urls) // self.config_obj.parser.max_concurrency
-                )
-
-                self.service_logger.bind(
-                    delay=delay,
-                    batch_number=i // self.config_obj.parser.max_concurrency
-                    + 1,
-                ).debug(f"Waiting {delay:.2f} seconds between batches")
-
-                await asyncio.sleep(delay)
+            self._update_progress(processed_urls, len(all_products))
 
         self.service_logger.bind(
             total_products=len(all_products), total_urls=len(urls)
@@ -196,59 +206,107 @@ class ParserService:
         self,
         start_urls: List[str],
         parser_class: Type[BaseParser],
-    ) -> List[ProductModel]:
+    ) -> Tuple[List[ProductModel], Optional[Path], int]:
         self.service_logger.bind(start_urls_count=len(start_urls)).info(
             "Starting full parsing cycle"
         )
 
         all_links = []
-        for i in range(
-            0, len(start_urls), self.config_obj.parser.max_concurrency
-        ):
-            batch_urls = start_urls[
-                i : i + self.config_obj.parser.max_concurrency
-            ]
+        processed_start_urls = 0
+        parsing_errors = []
 
-            self.service_logger.bind(
-                link_batch_number=i // self.config_obj.parser.max_concurrency
-                + 1,
-                batch_size=len(batch_urls),
-            ).info("Processing links batch")
-
-            batch_links = await self.parse_links_batch(
-                batch_urls, parser_class
-            )
-            all_links.extend(batch_links)
-
-            if i + self.config_obj.parser.max_concurrency < len(start_urls):
-                delay = self.config_obj.parser.delay_min + (
-                    self.config_obj.parser.delay_max
-                    - self.config_obj.parser.delay_min
-                ) * (i // self.config_obj.parser.max_concurrency) / (
-                    len(start_urls) // self.config_obj.parser.max_concurrency
-                )
+        try:
+            for i in range(
+                0, len(start_urls), self.config_obj.parser.max_concurrency
+            ):
+                batch_urls = start_urls[
+                    i : i + self.config_obj.parser.max_concurrency
+                ]
 
                 self.service_logger.bind(
-                    delay=delay,
-                    batch_number=i // self.config_obj.parser.max_concurrency
+                    link_batch_number=i
+                    // self.config_obj.parser.max_concurrency
                     + 1,
-                ).debug(f"Waiting {delay:.2f} seconds between batches")
+                    batch_size=len(batch_urls),
+                ).info("Processing links batch")
 
-                await asyncio.sleep(delay)
+                try:
+                    batch_links = await self.parse_links_batch(
+                        batch_urls, parser_class
+                    )
+                    all_links.extend(batch_links)
+                    processed_start_urls += len(batch_urls)
+
+                    self._update_progress(
+                        processed_start_urls, 0, len(all_links)
+                    )
+
+                except Exception as e:
+                    error_msg = f"Failed to parse links batch: {str(e)}"
+                    parsing_errors.append(error_msg)
+                    self.service_logger.bind(
+                        batch_urls=batch_urls,
+                        error_type=type(e).__name__,
+                        error_message=str(e),
+                    ).error(
+                        "Batch link parsing failed, continuing with next batch"
+                    )
+
+        except Exception as e:
+            error_msg = f"Critical error during link parsing: {str(e)}"
+            parsing_errors.append(error_msg)
+            self.service_logger.bind(
+                error_type=type(e).__name__,
+                error_message=str(e),
+            ).error("Critical error during link parsing phase")
 
         unique_links = list(set(all_links))
 
-        self.service_logger.bind(total_links_found=len(unique_links)).info(
-            "Link parsing phase completed"
-        )
+        self.service_logger.bind(
+            total_links_found=len(unique_links),
+            parsing_errors=len(parsing_errors),
+        ).info("Link parsing phase completed")
 
-        products = await self.parse_products_batch(unique_links, parser_class)
+        products = []
+        if unique_links:
+            try:
+                products = await self.parse_products_batch(
+                    unique_links, parser_class
+                )
+            except Exception as e:
+                error_msg = f"Failed to parse products: {str(e)}"
+                parsing_errors.append(error_msg)
+                self.service_logger.bind(
+                    error_type=type(e).__name__,
+                    error_message=str(e),
+                ).error("Product parsing failed")
 
         self.service_logger.bind(
-            total_products=len(products), total_links=len(unique_links)
+            total_products=len(products),
+            total_links=len(unique_links),
+            total_errors=len(parsing_errors),
         ).success("Full parsing cycle completed")
 
-        return products
+        archive_path = None
+        saved_count = 0
+        try:
+            result = self.save_products(products)
+            if result is not None:
+                archive_path, saved_count = result
+        except Exception as e:
+            error_msg = f"Failed to save products: {str(e)}"
+            parsing_errors.append(error_msg)
+            self.service_logger.bind(
+                error_type=type(e).__name__,
+                error_message=str(e),
+            ).error("Failed to save products to archive")
+
+        if parsing_errors:
+            self.service_logger.bind(
+                error_count=len(parsing_errors), errors=parsing_errors
+            ).warning("Parsing completed with errors")
+
+        return products, archive_path, saved_count
 
     async def close(self):
         if hasattr(self.http_client, "_session") and self.http_client._session:
@@ -256,19 +314,28 @@ class ParserService:
 
         self.service_logger.info("Parser service closed")
 
-    def save_products(self, products: List[ProductModel]) -> List[Path]:
+    def save_products(
+        self, products: List[ProductModel]
+    ) -> Optional[Tuple[Path, int]]:
         self.service_logger.bind(products_count=len(products)).info(
             "Starting products saving process"
         )
 
         try:
-            created_files = save_products_to_files(products, self.config_obj)
-
-            self.service_logger.bind(
-                products_count=len(products), files_created=len(created_files)
-            ).success("Products saving completed")
-
-            return created_files
+            result = save_products_to_files(products, self.config_obj)
+            if result is not None:
+                archive_path, saved_count = result
+                self.service_logger.bind(
+                    products_count=len(products),
+                    saved_count=saved_count,
+                    archive_path=archive_path,
+                ).success("Products saving completed")
+                return archive_path, saved_count
+            else:
+                self.service_logger.bind(
+                    products_count=len(products),
+                ).warning("No products were saved")
+                return None
 
         except Exception as e:
             self.service_logger.bind(

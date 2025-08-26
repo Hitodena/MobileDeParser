@@ -1,4 +1,5 @@
 import asyncio
+import random
 from typing import Dict, Optional
 
 from aiohttp import (
@@ -16,12 +17,19 @@ from shared.utils.proxy_manager import ProxyManager
 
 class HTTPClient:
     def __init__(
-        self, proxy_manager: ProxyManager, timeout: int | float, retries: int
+        self,
+        proxy_manager: ProxyManager,
+        timeout: int | float,
+        retries: int,
+        delay_min: int | float,
+        delay_max: int | float,
     ) -> None:
         self.proxy_manager = proxy_manager
         self._session: Optional[ClientSession] = None
         self.timeout = ClientTimeout(total=timeout)
         self.retries = retries
+        self.min_delay = delay_min
+        self.max_delay = delay_max
 
     def _get_headers(self) -> Dict[str, str]:
         return generate_headers()
@@ -74,6 +82,14 @@ class HTTPClient:
                             content_length=len(content),
                         ).success("Request completed successfully")
 
+                        delay = random.uniform(self.min_delay, self.max_delay)
+
+                        logger.bind(
+                            delay=delay,
+                        ).info("Waiting for delay")
+
+                        await asyncio.sleep(delay)
+
                         return content
 
             except ClientResponseError as e:
@@ -86,7 +102,9 @@ class HTTPClient:
                     error_type="http_error",
                 ).warning("HTTP error occurred")
 
-                # Don't retry client errors (4xx) except rate limiting
+                if e.status in [403, 407, 502, 503, 504] and proxy:
+                    self.proxy_manager.mark_proxy_as_failed(proxy)
+
                 if 400 <= e.status < 500 and e.status != 429:
                     attempt_logger.bind(reason="client_error_no_retry").info(
                         "Stopping retries"

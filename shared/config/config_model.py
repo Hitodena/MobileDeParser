@@ -1,7 +1,9 @@
 from pathlib import Path
 from typing import Dict, List, Literal, Set
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, computed_field, field_validator
+
+from shared.utils.generate_links import generate_links
 
 
 class LoggingConfig(BaseModel):
@@ -33,6 +35,8 @@ class ParserConfig(BaseModel):
         default="https://www.mobile.de/ru/категория/автомобиль/vhc:car/"
     )
     check_url: str = Field(default="https://www.mobile.de/ru/")
+    pages: int = Field(default=40)
+    items_per_page: int = Field(default=50)
     timeout: int = Field(default=15)
     retries: int = Field(default=3)
     delay_min: float = Field(default=0.1)
@@ -48,6 +52,13 @@ class ParserConfig(BaseModel):
     @classmethod
     def validate_proxy_file(cls, v: str) -> Path:
         return Path(v).resolve()
+
+    @computed_field
+    @property
+    def links(self) -> List[str]:
+        return generate_links(
+            self.base_search_url, self.pages, self.items_per_page
+        )
 
 
 class FilesConfig(BaseModel):

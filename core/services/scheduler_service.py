@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime
-from typing import Callable, Dict, List, Optional, Union
+from pathlib import Path
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from loguru import logger
 from typing_extensions import Type
@@ -18,6 +19,9 @@ class SchedulerService:
         self.is_running = False
         self.current_task: Optional[asyncio.Task] = None
         self.config_obj = config_obj
+        self.progress_callback: Optional[Callable[[int, int, int], None]] = (
+            None
+        )
 
         self.scheduler_logger = logger.bind(
             service="SchedulerService",
@@ -29,11 +33,19 @@ class SchedulerService:
         await self.parser_service.initialize()
         self.scheduler_logger.info("Scheduler service initialized")
 
+    def set_progress_callback(self, callback: Callable[[int, int, int], None]):
+        self.progress_callback = callback
+        if self.parser_service:
+            self.parser_service.set_progress_callback(callback)
+
     async def start_cyclic_parsing(
         self,
         start_urls: List[str],
-        callback: Optional[Callable[[List[ProductModel]], None]] = None,
+        callback: Optional[
+            Callable[[Tuple[List[ProductModel], Optional[Path], int]], None]
+        ] = None,
         parser_class: Type[BaseParser] = MobileDeRuParser,
+        progress_callback: Optional[Callable[[int, int, int], None]] = None,
     ):
         if self.is_running:
             self.scheduler_logger.warning("Scheduler is already running")
@@ -41,6 +53,9 @@ class SchedulerService:
 
         self.is_running = True
         self.scheduler_logger.info("Starting cyclic parsing scheduler")
+
+        if progress_callback:
+            self.set_progress_callback(progress_callback)
 
         try:
             while self.is_running:
@@ -60,8 +75,7 @@ class SchedulerService:
 
                     self.scheduler_logger.bind(
                         cycle_duration=cycle_duration,
-                        links_found=len(result),
-                        products_parsed=len(result),
+                        products_parsed=len(result[0]) if result[0] else 0,
                     ).success("Parsing cycle completed")
 
                     if callback:
@@ -77,6 +91,23 @@ class SchedulerService:
                     self.scheduler_logger.bind(
                         error_type=type(e).__name__, error_message=str(e)
                     ).error("Parsing cycle failed")
+
+                    if callback:
+                        try:
+                            empty_result = (
+                                [],
+                                None,
+                                0,
+                            )
+                            callback(empty_result)
+                            self.scheduler_logger.info(
+                                "Sent empty results due to parsing failure"
+                            )
+                        except Exception as callback_error:
+                            self.scheduler_logger.bind(
+                                error_type=type(callback_error).__name__,
+                                error_message=str(callback_error),
+                            ).error("Failed to send empty results to callback")
 
                 if not self.config_obj.parser.cycle:
                     self.scheduler_logger.info("Cycle mode disabled, stopping")
@@ -120,10 +151,14 @@ class SchedulerService:
     async def run_single_cycle(
         self,
         start_urls: List[str],
-    ) -> List[ProductModel]:
+        progress_callback: Optional[Callable[[int, int, int], None]] = None,
+    ) -> Tuple[List[ProductModel], Optional[Path], int]:
         self.scheduler_logger.bind(urls_count=len(start_urls)).info(
             "Running single parsing cycle"
         )
+
+        if progress_callback:
+            self.set_progress_callback(progress_callback)
 
         try:
             result = await self.parser_service.run_full_parsing(
@@ -132,10 +167,10 @@ class SchedulerService:
             )
 
             self.scheduler_logger.bind(
-                products_parsed=len(result),
+                products_parsed=len(result[0]) if result[0] else 0,
             ).success("Single cycle completed")
 
-            return result
+            return result[0], result[1], result[2]
 
         except Exception as e:
             self.scheduler_logger.bind(

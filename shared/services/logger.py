@@ -80,9 +80,9 @@ def init_logger(
         for module_name in modules:
             logger.add(
                 log_dir / f"{module_name}.log",
-                level=file_level,
+                level="DEBUG",
                 format=file_format,
-                filter=lambda record: record["name"] == module_name,
+                filter=module_name,
                 rotation=rotation,
                 retention=retention,
                 compression=compression,
