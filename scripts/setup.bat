@@ -15,12 +15,6 @@ REM Сборка образа
 echo Сборка образа...
 docker build -t mobilede-parser:latest -f ../docker/Dockerfile ..
 
-REM Создаем базу данных если её нет
-if not exist %cd%\..\products.db (
-    echo Создаю пустую базу данных...
-    touch %cd%\..\products.db
-)
-
 REM Запуск контейнера с volumes
 echo Запуск контейнера...
 docker run -d --name mobilede ^
