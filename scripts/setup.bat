@@ -5,6 +5,7 @@ docker ps -a | findstr mobilede >nul
 if %errorlevel% equ 0 (
     echo Контейнер найден, останавливаем...
     docker stop mobilede
+    docker rm mobilede
     echo Контейнер остановлен
 ) else (
     echo Контейнер не найден

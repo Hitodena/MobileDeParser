@@ -4,6 +4,7 @@
 
 if docker ps -a | grep -q mobilede; then
     docker stop mobilede
+    docker rm mobilede
 fi
 
 # Сборка образа
