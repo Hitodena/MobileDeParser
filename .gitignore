@@ -15,7 +15,6 @@ configuration_*.yaml
 tmp
 var
 logs
-products.db
 
 # Working files
 proxies.txt

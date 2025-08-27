@@ -16,5 +16,4 @@ sudo docker run -d --name mobilede \
   -v $(pwd)/../logs:/app/logs \
   -v $(pwd)/../configuration.yaml:/app/configuration.yaml \
   -v $(pwd)/../proxies.txt:/app/proxies.txt \
-  -v $(pwd)/../products.db:/app/products.db \
   mobilede-parser:latest

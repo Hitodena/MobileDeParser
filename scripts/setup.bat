@@ -22,7 +22,6 @@ docker run -d --name mobilede ^
   -v %cd%\..\logs:/app/logs ^
   -v %cd%\..\configuration.yaml:/app/configuration.yaml ^
   -v %cd%\..\proxies.txt:/app/proxies.txt ^
-  -v %cd%\..\products.db:/app/products.db ^
   mobilede-parser:latest
 
 pause

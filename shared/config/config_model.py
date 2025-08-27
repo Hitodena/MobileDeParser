@@ -74,7 +74,7 @@ class FilesConfig(BaseModel):
     )
     replaces_file: Path = Field(default=Path("var/www/mobile/replaces.csv"))
     files_dir: Path = Field(default=Path("var/www/mobile/files"))
-    db_path: Path = Field(default=Path("products.db"))
+    db_path: Path = Field(default=Path("var/www/mobile/files/products.db"))
 
     @field_validator("files_dir", mode="after")
     @classmethod
