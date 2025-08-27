@@ -184,5 +184,5 @@ class ConfigLoader:
         return self._config
 
 
-config_loader = ConfigLoader("configuration_dev.yaml")
+config_loader = ConfigLoader("configuration.yaml")
 config = config_loader.config

@@ -1,0 +1,10 @@
+.git
+.gitignore
+proxies_example.txt
+proxies.txt
+.venv
+configuration_*.yaml
+logs
+var
+README.md
+scripts
