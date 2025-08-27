@@ -7,6 +7,12 @@ if sudo docker ps -a | grep -q mobilede; then
     sudo docker rm mobilede
 fi
 
+# Создаем пустую базу данных если её нет
+if [ ! -f "../products.db" ]; then
+    echo "Создаю пустую базу данных..."
+    touch ../products.db
+fi
+
 # Сборка образа
 sudo docker build -t mobilede-parser:latest -f ../docker/Dockerfile ..
 

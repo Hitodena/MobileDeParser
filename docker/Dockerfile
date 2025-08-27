@@ -1,7 +1,5 @@
 FROM python:3.12-slim
 
-
-
 # Устанавливаем uv
 RUN apt-get update && apt-get install -y
 RUN pip install --no-cache-dir uv
