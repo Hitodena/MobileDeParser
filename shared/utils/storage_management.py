@@ -2,17 +2,16 @@ import csv
 import zipfile
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from loguru import logger
 
-from core.models.product_model import ProductModel
 from shared.config.config_model import ConfigModel
+from shared.services.database_service import DatabaseService
 
 
 def read_csv_file(file_path: Path, delimiter: str = ";"):
     encodings = ["utf-8-sig", "utf-8", "cp1251", "latin-1"]
-
     for encoding in encodings:
         try:
             with open(file_path, "r", encoding=encoding) as f:
@@ -27,26 +26,43 @@ def read_csv_file(file_path: Path, delimiter: str = ";"):
                 return rows
 
         except UnicodeDecodeError as e:
-            logger.error(f"UnicodeDecodeError: {e}")
+            logger.bind(
+                service="StorageManagement",
+                file_path=str(file_path),
+                encoding=encoding,
+                error_type=type(e).__name__,
+                error_message=str(e),
+            ).error("UnicodeDecodeError")
             continue
         except Exception as e:
-            logger.error(f"Error reading CSV file: {e}")
+            logger.bind(
+                service="StorageManagement",
+                file_path=str(file_path),
+                encoding=encoding,
+                error_type=type(e).__name__,
+                error_message=str(e),
+            ).error("Error reading CSV file")
             continue
 
     return []
 
 
-def save_products_to_files(
-    products: List[ProductModel], config: ConfigModel
+def save_products_from_database(
+    config: ConfigModel,
 ) -> Optional[Tuple[Path, int]]:
-    if not products:
-        logger.warning("No products to save")
+    db_service = DatabaseService(config.files.db_path)
+    db_products = db_service.get_all_products()
+
+    if not db_products:
+        logger.bind(service="StorageManagement").warning(
+            "No products in database to export"
+        )
         return None
 
     lines_limit = config.files.lines_limit
     files_dir = config.files.files_dir
 
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    timestamp = datetime.now().strftime("%Y_%m_%d")
     temp_dir = files_dir / f"temp_{timestamp}"
     temp_dir.mkdir(parents=True, exist_ok=True)
 
@@ -54,33 +70,38 @@ def save_products_to_files(
     total_saved_products = 0
 
     try:
-        total_products = len(products)
-        logger.info(
-            f"Starting to save {total_products} products with limit {lines_limit} per file"
-        )
+        total_products = len(db_products)
+        logger.bind(
+            service="StorageManagement",
+            total_products=total_products,
+            lines_limit=lines_limit,
+        ).info("Starting to save products from database")
 
         for i in range(0, total_products, lines_limit):
-            chunk = products[i : i + lines_limit]
+            chunk = db_products[i : i + lines_limit]
             chunk_number = (i // lines_limit) + 1
 
             filename = f"mobile_{chunk_number:03d}__{timestamp}.csv"
             file_path = temp_dir / filename
 
-            saved_in_chunk = _save_products_chunk_to_csv(chunk, file_path)
+            saved_in_chunk = _save_dict_chunk_to_csv(chunk, file_path)
             total_saved_products += saved_in_chunk
 
             if saved_in_chunk > 0:
                 created_files.append(file_path)
-                logger.info(
-                    f"Saved chunk {chunk_number}: {saved_in_chunk} products to {file_path}"
-                )
+                logger.bind(
+                    service="StorageManagement",
+                    chunk_number=chunk_number,
+                    saved_in_chunk=saved_in_chunk,
+                    file_path=str(file_path),
+                ).info("Saved chunk")
             else:
-                logger.warning(
-                    f"Chunk {chunk_number}: no valid products to save"
-                )
+                logger.bind(
+                    service="StorageManagement", chunk_number=chunk_number
+                ).warning("Chunk: no valid products to save")
 
         if not created_files:
-            logger.warning(
+            logger.bind(service="StorageManagement").warning(
                 "No valid products to save, cleaning up temp directory"
             )
             temp_dir.rmdir()
@@ -90,22 +111,32 @@ def save_products_to_files(
         archive_path = files_dir / archive_name
 
         _create_archive(created_files, archive_path)
-        logger.info(f"Created archive: {archive_path}")
+        logger.bind(
+            service="StorageManagement", archive_path=str(archive_path)
+        ).info("Created archive")
 
         if archive_path.exists():
             for file_path in created_files:
                 if file_path.exists():
                     file_path.unlink()
             temp_dir.rmdir()
-            logger.info("Temporary files cleaned up")
+            logger.bind(service="StorageManagement").info(
+                "Temporary files cleaned up"
+            )
         else:
-            logger.error("Archive was not created, keeping temporary files")
+            logger.bind(
+                service="StorageManagement", archive_path=str(archive_path)
+            ).error("Archive was not created, keeping temporary files")
             raise FileNotFoundError(f"Archive was not created: {archive_path}")
 
         return archive_path, total_saved_products
 
     except Exception as e:
-        logger.error(f"Error saving products to files: {e}")
+        logger.bind(
+            service="StorageManagement",
+            error_type=type(e).__name__,
+            error_message=str(e),
+        ).error("Error saving products from database")
         for file_path in created_files:
             if file_path.exists():
                 file_path.unlink()
@@ -114,9 +145,7 @@ def save_products_to_files(
         raise
 
 
-def _save_products_chunk_to_csv(
-    products: List[ProductModel], file_path: Path
-) -> int:
+def _save_dict_chunk_to_csv(products: List[Dict], file_path: Path) -> int:
     if not products:
         return 0
 
@@ -124,14 +153,15 @@ def _save_products_chunk_to_csv(
     valid_products = []
 
     for product in products:
-        product_dict = product.to_csv_dict()
-        if product_dict:
+        if product:
             if first_product_dict is None:
-                first_product_dict = product_dict
-            valid_products.append(product_dict)
+                first_product_dict = product
+            valid_products.append(product)
 
     if not first_product_dict:
-        logger.warning("No valid products found in chunk, skipping")
+        logger.bind(service="StorageManagement").warning(
+            "No valid products found in chunk, skipping"
+        )
         return 0
 
     fieldnames = list(first_product_dict.keys())
@@ -147,12 +177,19 @@ def _save_products_chunk_to_csv(
             for product_dict in valid_products:
                 writer.writerow(product_dict)
 
-        logger.debug(
-            f"Successfully saved {saved_count} products to {file_path}"
-        )
+        logger.bind(
+            service="StorageManagement",
+            saved_count=saved_count,
+            file_path=str(file_path),
+        ).debug("Successfully saved products to CSV")
 
     except Exception as e:
-        logger.error(f"Error saving products chunk to CSV: {e}")
+        logger.bind(
+            service="StorageManagement",
+            file_path=str(file_path),
+            error_type=type(e).__name__,
+            error_message=str(e),
+        ).error("Error saving products chunk to CSV")
         raise
 
     return saved_count
@@ -160,26 +197,39 @@ def _save_products_chunk_to_csv(
 
 def _create_archive(file_paths: List[Path], archive_path: Path) -> None:
     try:
-        logger.info(
-            f"Creating archive at {archive_path} with {len(file_paths)} files"
-        )
+        logger.bind(
+            service="StorageManagement",
+            archive_path=str(archive_path),
+            files_count=len(file_paths),
+        ).info("Creating archive")
 
         with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as zipf:
             for file_path in file_paths:
                 if file_path.exists():
                     zipf.write(file_path, file_path.name)
-                    logger.debug(f"Added {file_path.name} to archive")
+                    logger.bind(
+                        service="StorageManagement", file_name=file_path.name
+                    ).debug("Added file to archive")
                 else:
-                    logger.warning(f"File not found: {file_path}")
+                    logger.bind(
+                        service="StorageManagement", file_path=str(file_path)
+                    ).warning("File not found")
 
         if archive_path.exists():
             archive_size = archive_path.stat().st_size
-            logger.info(
-                f"Archive created successfully: {archive_path} (size: {archive_size} bytes)"
-            )
+            logger.bind(
+                service="StorageManagement",
+                archive_path=str(archive_path),
+                archive_size=archive_size,
+            ).info("Archive created successfully")
         else:
             raise FileNotFoundError(f"Archive was not created: {archive_path}")
 
     except Exception as e:
-        logger.error(f"Error creating archive: {e}")
+        logger.bind(
+            service="StorageManagement",
+            archive_path=str(archive_path),
+            error_type=type(e).__name__,
+            error_message=str(e),
+        ).error("Error creating archive")
         raise

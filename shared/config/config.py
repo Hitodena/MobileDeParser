@@ -37,7 +37,9 @@ class ConfigLoader:
 
         self._load_config()
         self._initialized = True
-        logger.success("Config initialized successfully")
+        logger.bind(service="Config").success(
+            "Config initialized successfully"
+        )
 
     def _load_config(self) -> None:
         with open(self._config_path, "r", encoding="utf-8") as file:
@@ -70,22 +72,22 @@ class ConfigLoader:
                 if original and replacement:
                     replacements[original] = replacement
                     loaded_count += 1
-            logger.debug(
-                "Text replacement rules loaded successfully",
+            logger.bind(
+                service="Config",
                 rules_count=loaded_count,
                 file_path=str(file_path),
-            )
+            ).debug("Text replacement rules loaded successfully")
         except FileNotFoundError:
-            logger.warning(
-                "Replacement rules file not found", file_path=str(file_path)
+            logger.bind(service="Config", file_path=str(file_path)).warning(
+                "Replacement rules file not found"
             )
         except Exception as e:
-            logger.error(
-                "Failed to load replacement rules",
+            logger.bind(
+                service="Config",
                 error=str(e),
                 error_type=type(e).__name__,
                 file_path=str(file_path),
-            )
+            ).error("Failed to load replacement rules")
         return replacements
 
     def _load_dealer_exclusions(self) -> List[str]:
@@ -100,21 +102,21 @@ class ConfigLoader:
                     exclusions.append(dealer)
                 loaded_count += 1
             if loaded_count == 0:
-                logger.warning(
-                    "No dealer exclusions found", file_path=str(file_path)
-                )
-            logger.debug(
-                "Dealer exclusions loaded successfully",
+                logger.bind(
+                    service="Config", file_path=str(file_path)
+                ).warning("No dealer exclusions found")
+            logger.bind(
+                service="Config",
                 exclusions_count=loaded_count,
                 file_path=str(file_path),
-            )
+            ).debug("Dealer exclusions loaded successfully")
         except Exception as e:
-            logger.error(
-                "Failed to load dealer exclusions",
+            logger.bind(
+                service="Config",
                 error=str(e),
                 error_type=type(e).__name__,
                 file_path=str(file_path),
-            )
+            ).error("Failed to load dealer exclusions")
         return exclusions
 
     def _load_image_exclusions(self) -> Dict[str, Dict[str, str]]:
@@ -133,21 +135,21 @@ class ConfigLoader:
                     }
                 loaded_count += 1
             if loaded_count == 0:
-                logger.warning(
-                    "No image exclusions found", file_path=str(file_path)
-                )
-            logger.debug(
-                "Image exclusion rules loaded successfully",
+                logger.bind(
+                    service="Config", file_path=str(file_path)
+                ).warning("No image exclusions found")
+            logger.bind(
+                service="Config",
                 rules_count=loaded_count,
                 file_path=str(file_path),
-            )
+            ).debug("Image exclusion rules loaded successfully")
         except Exception as e:
-            logger.error(
-                "Failed to load image exclusions",
+            logger.bind(
+                service="Config",
                 error=str(e),
                 error_type=type(e).__name__,
                 file_path=str(file_path),
-            )
+            ).error("Failed to load image exclusions")
         return exclusions
 
     def _load_brand_exclusions(self) -> List[str]:
@@ -162,21 +164,21 @@ class ConfigLoader:
                     exclusions.append(brand)
                 loaded_count += 1
             if loaded_count == 0:
-                logger.warning(
-                    "No brand exclusions found", file_path=str(file_path)
-                )
-            logger.debug(
-                "Brand exclusions loaded successfully",
+                logger.bind(
+                    service="Config", file_path=str(file_path)
+                ).warning("No brand exclusions found")
+            logger.bind(
+                service="Config",
                 exclusions_count=loaded_count,
                 file_path=str(file_path),
-            )
+            ).debug("Brand exclusions loaded successfully")
         except Exception as e:
-            logger.error(
-                "Failed to load brand exclusions",
+            logger.bind(
+                service="Config",
                 error=str(e),
                 error_type=type(e).__name__,
                 file_path=str(file_path),
-            )
+            ).error("Failed to load brand exclusions")
         return exclusions
 
     @property

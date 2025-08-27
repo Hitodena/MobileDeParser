@@ -22,6 +22,13 @@ class CommandHandlers:
         self.router.message.register(self.help_command, Command("help"))
         self.router.message.register(self.seturl_command, Command("seturl"))
         self.router.message.register(
+            self.database_stats_command, Command("dbstats")
+        )
+        self.router.message.register(self.sql_dump_command, Command("sqldump"))
+        self.router.message.register(
+            self.export_db_command, Command("exportdb")
+        )
+        self.router.message.register(
             self.handle_url_message,
             lambda message: self._is_url_message(message),
         )
@@ -59,6 +66,9 @@ class CommandHandlers:
             "⏹️ /stop - Остановить текущий парсинг\n"
             "📊 /status - Показать статус парсера\n"
             "🔗 /seturl - Установить ссылку для парсинга\n"
+            "📊 /dbstats - Статистика базы данных\n"
+            "💾 /sqldump - Создать SQL дамп базы\n"
+            "📦 /exportdb - Экспорт всех продуктов из БД\n"
             "❓ /help - Показать эту справку\n\n"
             "💡 Просто отправьте ссылку на страницу Mobile.de для парсинга\n"
             "После завершения парсинга вы получите архив с результатами."
@@ -92,7 +102,9 @@ class CommandHandlers:
                     f"✅ Ссылка установлена: {text}\n"
                     f"Теперь можете запустить парсинг командой /start"
                 )
-                logger.info(f"URL set by user {message.chat.id}: {text}")
+                logger.bind(
+                    service="Commands", chat_id=message.chat.id, url=text
+                ).info("URL set by user")
             else:
                 await message.answer(
                     "❌ Неверный формат ссылки!\n"
@@ -115,17 +127,99 @@ class CommandHandlers:
                 "🔄 Попробуйте еще раз или отправьте /seturl для отмены"
             )
 
+    async def database_stats_command(self, message: Message):
+        try:
+            stats = self.parser_manager.get_database_stats()
+            if "error" in stats:
+                await message.answer(
+                    f"❌ Ошибка получения статистики: {stats['error']}"
+                )
+                return
+
+            stats_text = (
+                f"📊 Статистика базы данных:\n\n"
+                f"🗄️ Всего продуктов: {stats['total_products']:,}\n"
+                f"📁 Путь к БД: {stats['database_path']}\n\n"
+                f"💡 База данных автоматически фильтрует дубли при парсинге"
+            )
+            await message.answer(stats_text)
+
+        except Exception as e:
+            await message.answer(f"❌ Ошибка: {str(e)}")
+
+    async def sql_dump_command(self, message: Message):
+        try:
+            await message.answer("💾 Создаю SQL дамп базы данных...")
+
+            from datetime import datetime
+
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            dump_path = f"database_dump_{timestamp}.sql"
+
+            success = self.parser_manager.create_sql_dump(dump_path)
+
+            if success:
+                await message.answer(
+                    f"✅ SQL дамп создан успешно!\n"
+                    f"📁 Файл: {dump_path}\n\n"
+                    f"💡 Файл содержит все продукты из базы данных"
+                )
+            else:
+                await message.answer("❌ Ошибка при создании SQL дампа")
+
+        except Exception as e:
+            await message.answer(f"❌ Ошибка: {str(e)}")
+
+    async def export_db_command(self, message: Message):
+        try:
+            await message.answer(
+                "📦 Экспортирую все продукты из базы данных..."
+            )
+
+            result = self.parser_manager.export_from_database()
+
+            if result:
+                archive_path, exported_count = result
+
+                from aiogram.types import FSInputFile
+
+                document = FSInputFile(str(archive_path))
+
+                await message.answer_document(
+                    document,
+                    caption=f"✅ Экспорт завершен!\n"
+                    f"📦 Экспортировано: {exported_count:,} продуктов\n"
+                    f"📁 Архив: {archive_path.name}\n\n"
+                    f"💡 Архив содержит все продукты из базы данных",
+                )
+            else:
+                await message.answer(
+                    "❌ Нет данных для экспорта или ошибка при экспорте"
+                )
+
+        except Exception as e:
+            await message.answer(f"❌ Ошибка: {str(e)}")
+
     async def setup_commands(self, bot):
         commands = [
             BotCommand(command="start", description="Запустить парсинг"),
             BotCommand(command="stop", description="Остановить парсинг"),
             BotCommand(command="status", description="Статус парсера"),
             BotCommand(command="seturl", description="Установить ссылку"),
+            BotCommand(command="dbstats", description="Статистика БД"),
+            BotCommand(command="sqldump", description="SQL дамп БД"),
+            BotCommand(command="exportdb", description="Экспорт из БД"),
             BotCommand(command="help", description="Справка"),
         ]
 
         try:
             await bot.set_my_commands(commands)
-            logger.info("Bot commands set successfully")
+            logger.bind(service="Commands").info(
+                "Bot commands set successfully"
+            )
         except Exception as e:
-            logger.error(f"Failed to set bot commands: {e}")
+            logger.bind(
+                service="Commands",
+                error_type=type(e).__name__,
+                error_message=str(e),
+            ).error("Failed to set bot commands")

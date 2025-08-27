@@ -42,7 +42,7 @@ class SchedulerService:
         self,
         start_urls: List[str],
         callback: Optional[
-            Callable[[Tuple[List[ProductModel], Optional[Path], int]], None]
+            Callable[[Tuple[List[ProductModel], int]], None]
         ] = None,
         parser_class: Type[BaseParser] = MobileDeRuParser,
         progress_callback: Optional[Callable[[int, int, int], None]] = None,
@@ -80,7 +80,7 @@ class SchedulerService:
 
                     if callback:
                         try:
-                            callback(result)
+                            callback((result[0], result[2]))
                         except Exception as e:
                             self.scheduler_logger.bind(
                                 error_type=type(e).__name__,
@@ -94,11 +94,7 @@ class SchedulerService:
 
                     if callback:
                         try:
-                            empty_result = (
-                                [],
-                                None,
-                                0,
-                            )
+                            empty_result = ([], 0)
                             callback(empty_result)
                             self.scheduler_logger.info(
                                 "Sent empty results due to parsing failure"

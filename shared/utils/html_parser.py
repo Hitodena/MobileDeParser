@@ -7,12 +7,14 @@ from shared.exceptions.html_exceptions import HTMLParsingError
 
 def parse_markup(html: str) -> BeautifulSoup:
     try:
-        logger.debug("Parsing HTML with lxml...")
+        logger.bind(service="HTMLParser").debug("Parsing HTML with lxml...")
         return BeautifulSoup(html, "lxml")
     except FeatureNotFound as e:
-        logger.warning(
-            f"lxml parser not available, falling back to html.parser: {e}"
-        )
+        logger.bind(
+            service="HTMLParser",
+            error_type=type(e).__name__,
+            error_message=str(e),
+        ).warning("lxml parser not available, falling back to html.parser")
         try:
             return BeautifulSoup(html, "html.parser")
         except Exception as fallback_error:

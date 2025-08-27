@@ -7,9 +7,12 @@ from loguru import logger
 from core.models.product_model import ProductModel
 from core.parsers.base_parser import BaseParser
 from shared.config.config_model import ConfigModel
+from shared.services.database_service import DatabaseService
 from shared.services.http_client import HTTPClient
 from shared.utils.proxy_manager import ProxyManager
-from shared.utils.storage_management import save_products_to_files
+from shared.utils.storage_management import (
+    save_products_from_database,
+)
 
 
 class ParserService:
@@ -30,6 +33,8 @@ class ParserService:
         self.request_semaphore = asyncio.Semaphore(
             config_obj.parser.max_concurrency
         )
+
+        self.database_service = DatabaseService(config_obj.files.db_path)
 
         self.service_logger = logger.bind(
             service="ParserService",
@@ -287,26 +292,31 @@ class ParserService:
             total_errors=len(parsing_errors),
         ).success("Full parsing cycle completed")
 
-        archive_path = None
         saved_count = 0
         try:
-            result = self.save_products(products)
-            if result is not None:
-                archive_path, saved_count = result
+            new_count, duplicates_count = (
+                self.database_service.save_products_batch(products)
+            )
+            saved_count = new_count
+            self.service_logger.bind(
+                total_products=len(products),
+                new_products=new_count,
+                duplicates=duplicates_count,
+            ).info("Products saved to database")
         except Exception as e:
-            error_msg = f"Failed to save products: {str(e)}"
+            error_msg = f"Failed to save products to database: {str(e)}"
             parsing_errors.append(error_msg)
             self.service_logger.bind(
                 error_type=type(e).__name__,
                 error_message=str(e),
-            ).error("Failed to save products to archive")
+            ).error("Failed to save products to database")
 
         if parsing_errors:
             self.service_logger.bind(
                 error_count=len(parsing_errors), errors=parsing_errors
             ).warning("Parsing completed with errors")
 
-        return products, archive_path, saved_count
+        return products, None, saved_count
 
     async def close(self):
         if hasattr(self.http_client, "_session") and self.http_client._session:
@@ -322,20 +332,17 @@ class ParserService:
         )
 
         try:
-            result = save_products_to_files(products, self.config_obj)
-            if result is not None:
-                archive_path, saved_count = result
-                self.service_logger.bind(
-                    products_count=len(products),
-                    saved_count=saved_count,
-                    archive_path=archive_path,
-                ).success("Products saving completed")
-                return archive_path, saved_count
-            else:
-                self.service_logger.bind(
-                    products_count=len(products),
-                ).warning("No products were saved")
-                return None
+            new_count, duplicates_count = (
+                self.database_service.save_products_batch(products)
+            )
+
+            self.service_logger.bind(
+                total_products=len(products),
+                new_products=new_count,
+                duplicates=duplicates_count,
+            ).info("Database filtering completed")
+
+            return None
 
         except Exception as e:
             self.service_logger.bind(
@@ -344,3 +351,58 @@ class ParserService:
                 error_message=str(e),
             ).error("Failed to save products")
             raise
+
+    def get_database_stats(self) -> dict:
+        try:
+            total_count = self.database_service.get_products_count()
+            return {
+                "total_products": total_count,
+                "database_path": self.database_service.db_path,
+            }
+        except Exception as e:
+            self.service_logger.bind(
+                error_type=type(e).__name__, error_message=str(e)
+            ).error("Failed to get database stats")
+            return {"error": str(e)}
+
+    def create_sql_dump(self, output_path: str) -> bool:
+        try:
+            success = self.database_service.create_sql_dump(output_path)
+            if success:
+                self.service_logger.bind(output_path=output_path).info(
+                    "SQL dump created"
+                )
+            else:
+                self.service_logger.bind(output_path=output_path).error(
+                    "Failed to create SQL dump"
+                )
+            return success
+        except Exception as e:
+            self.service_logger.bind(
+                output_path=output_path,
+                error_type=type(e).__name__,
+                error_message=str(e),
+            ).error("Error creating SQL dump")
+            return False
+
+    def export_from_database(self) -> Optional[Tuple[Path, int]]:
+        try:
+            self.service_logger.info("Starting database export")
+
+            result = save_products_from_database(self.config_obj)
+
+            if result:
+                archive_path, saved_count = result
+                self.service_logger.bind(
+                    exported_products=saved_count,
+                    archive_path=archive_path,
+                ).success("Database export completed")
+                return archive_path, saved_count
+
+            return None
+
+        except Exception as e:
+            self.service_logger.bind(
+                error_type=type(e).__name__, error_message=str(e)
+            ).error("Failed to export from database")
+            return None

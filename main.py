@@ -35,7 +35,7 @@ async def main():
         await lifecycle.start()
         await lifecycle.wait_for_shutdown()
     except KeyboardInterrupt:
-        logger.info("Получен сигнал завершения...")
+        logger.bind(service="Main").info("Получен сигнал завершения...")
     finally:
         await lifecycle.stop()
 
@@ -44,7 +44,9 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info("Бот остановлен пользователем")
+        logger.bind(service="Main").info("Бот остановлен пользователем")
     except Exception as e:
-        logger.error(f"Критическая ошибка: {e}")
+        logger.bind(
+            service="Main", error_type=type(e).__name__, error_message=str(e)
+        ).error("Критическая ошибка")
         sys.exit(1)

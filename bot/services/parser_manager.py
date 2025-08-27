@@ -27,7 +27,7 @@ class ParserManager:
     async def initialize(self):
         self.scheduler = SchedulerService(self.scheduler_config)
         await self.scheduler.initialize()
-        logger.info("Parser manager initialized")
+        logger.bind(service="ParserManager").info("Parser manager initialized")
 
     async def start_parsing(
         self, chat_id: int, start_urls: Optional[List[str]] = None
@@ -54,7 +54,7 @@ class ParserManager:
             await self.progress_tracker.start_tracking(len(start_urls))
 
             def parsing_callback(
-                result_tuple: Tuple[List[ProductModel], Optional[Path], int],
+                result_tuple: Tuple[List[ProductModel], int],
             ):
                 asyncio.create_task(
                     self._handle_parsing_result(chat_id, result_tuple)
@@ -82,13 +82,17 @@ class ParserManager:
                     )
                 )
 
-            logger.info(f"Parsing started for chat {chat_id}")
+            logger.bind(chat_id=chat_id).info("Parsing started for chat")
             return "Парсинг запущен"
 
         except Exception as e:
             error_msg = f"❌ Ошибка при запуске парсинга: {str(e)}"
             await self.bot.send_message(chat_id, error_msg)
-            logger.error(f"Failed to start parsing for chat {chat_id}: {e}")
+            logger.bind(
+                chat_id=chat_id,
+                error_type=type(e).__name__,
+                error_message=str(e),
+            ).error("Failed to start parsing for chat")
             return "Парсинг не запущен из-за ошибки"
 
     async def stop_parsing(self):
@@ -107,7 +111,7 @@ class ParserManager:
         if self.scheduler:
             await self.scheduler.stop()
 
-        logger.info("Parsing stopped")
+        logger.bind(service="ParserManager").info("Parsing stopped")
         return "Парсинг остановлен"
 
     def get_status(self) -> ParserStatus:
@@ -124,9 +128,9 @@ class ParserManager:
     async def _handle_parsing_result(
         self,
         chat_id: int,
-        result_tuple: Tuple[List[ProductModel], Optional[Path], int],
+        result_tuple: Tuple[List[ProductModel], int],
     ):
-        products, archive_path, saved_count = result_tuple
+        products, saved_count = result_tuple
 
         if self.progress_tracker:
             await self.progress_tracker.complete_tracking(success=True)
@@ -138,42 +142,43 @@ class ParserManager:
                 )
                 return
 
-            if archive_path and archive_path.exists():
-                await self._send_existing_archive(
-                    chat_id, archive_path, saved_count
-                )
-                logger.info(
-                    f"Sent existing archive to chat {chat_id}: {saved_count} products"
-                )
-            else:
-                await self.bot.send_message(
-                    chat_id,
-                    f"📦 Парсинг завершен!\n"
-                    f"✅ Найдено товаров: {len(products)}\n"
-                    f"📁 Архив не был создан из-за ошибки сохранения.",
-                )
-                logger.warning(
-                    f"No archive available for chat {chat_id}, sent message only"
-                )
+            await self.bot.send_message(
+                chat_id,
+                f"📦 Парсинг завершен!\n"
+                f"✅ Найдено товаров: {len(products)}\n"
+                f"💾 Новых сохранено: {saved_count}\n"
+                f"💾 Все продукты сохранены в базу данных\n\n"
+                f"💡 Используйте /exportdb для создания архива всех продуктов",
+            )
+            logger.bind(chat_id=chat_id, products_count=len(products)).info(
+                "Parsing completed for chat"
+            )
 
         except Exception as e:
-            logger.error(f"Failed to send results: {e}")
+            logger.bind(
+                chat_id=chat_id,
+                error_type=type(e).__name__,
+                error_message=str(e),
+            ).error("Failed to send results")
             await self.bot.send_message(
                 chat_id, f"❌ Ошибка при отправке результатов: {str(e)}"
             )
 
-    async def _send_existing_archive(
-        self, chat_id: int, archive_path: Path, products_count: int
-    ):
-        from aiogram.types import FSInputFile
-
-        document = FSInputFile(str(archive_path))
-        await self.bot.send_document(
-            chat_id,
-            document,
-            caption=f"📦 Результаты парсинга: {products_count} товаров",
-        )
-
     async def close(self):
         await self.stop_parsing()
-        logger.info("Parser manager closed")
+        logger.bind(service="ParserManager").info("Parser manager closed")
+
+    def get_database_stats(self) -> dict:
+        if self.scheduler and self.scheduler.parser_service:
+            return self.scheduler.parser_service.get_database_stats()
+        return {"error": "Parser service not available"}
+
+    def create_sql_dump(self, output_path: str) -> bool:
+        if self.scheduler and self.scheduler.parser_service:
+            return self.scheduler.parser_service.create_sql_dump(output_path)
+        return False
+
+    def export_from_database(self) -> Optional[Tuple[Path, int]]:
+        if self.scheduler and self.scheduler.parser_service:
+            return self.scheduler.parser_service.export_from_database()
+        return None

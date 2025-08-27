@@ -8,28 +8,26 @@ from shared.exceptions.model_exceptions import ModelExclusionError
 
 
 class ProductModel(BaseModel):
-    category: str = Field(alias="Category", default="")
-    model: str = Field(alias="Characteristics: модель", default="")
-    year_of_release: str = Field(
-        alias="Characteristics: год выпуска", default=""
+    category: str = Field(alias="Category")
+    model: str = Field(alias="Characteristics: модель")
+    year_of_release: str = Field(alias="Characteristics: год выпуска")
+    mileage: str = Field(alias="Characteristics: пробег")
+    transmission: str = Field(alias="Characteristics: коробка")
+    fuel: str = Field(alias="Characteristics: топливо")
+    engine_volume: str = Field(alias="Characteristics: объем, см3")
+    body: str = Field(alias="Characteristics: кузов")
+    color: str = Field(alias="Characteristics: цвет")
+    door_count: str = Field(alias="Characteristics: к-во дверей")
+    seat_count: str = Field(alias="Characteristics: к-во мест")
+    owner_count: Optional[str] = Field(
+        alias="Characteristics: к-во владельцев", default=None
     )
-    mileage: str = Field(alias="Characteristics: пробег", default="")
-    transmission: str = Field(alias="Characteristics: коробка", default="")
-    fuel: str = Field(alias="Characteristics: топливо", default="")
-    engine_volume: str = Field(alias="Characteristics: объем, см3", default="")
-    body: str = Field(alias="Characteristics: кузов", default="")
-    color: str = Field(alias="Characteristics: цвет", default="")
-    door_count: str = Field(alias="Characteristics: к-во дверей", default="")
-    seat_count: str = Field(alias="Characteristics: к-во мест", default="")
-    owner_count: str = Field(
-        alias="Characteristics: к-во владельцев", default=""
-    )
-    price: str = Field(alias="Price", default="")
+    price: str = Field(alias="Price")
     text: List[str] = Field(alias="Text", default_factory=list)
     images: List[str] = Field(alias="Photo", default_factory=list)
-    url: str = Field(alias="URL", default="")
-    dealer: str = Field(alias="ДИЛЕР", default="")
-    sku: str = Field(alias="SKU", default="")
+    url: str = Field(alias="URL")
+    dealer: str = Field(alias="ДИЛЕР")
+    sku: str = Field(alias="SKU")
 
     config: ConfigModel
 
@@ -53,31 +51,30 @@ class ProductModel(BaseModel):
                 self.mileage or "",
                 self.transmission or "",
             ).strip()
-            logger.debug(
-                "Title formatted successfully", formatted_title=formatted
+            logger.bind(formatted_title=formatted).debug(
+                "Title formatted successfully"
             )
             return formatted
         except (IndexError, KeyError) as e:
             fallback = (
                 f"{self.category} {self.model}, {self.year_of_release}".strip()
             )
-            logger.error(
-                "Title formatting failed, using fallback",
+            logger.bind(
                 error=str(e),
                 error_type=type(e).__name__,
                 fallback_title=fallback,
-            )
+            ).error("Title formatting failed, using fallback")
             return fallback
 
     @computed_field
     @property
     def formatted_tab_one(self) -> str:
-        return self.config.templates.tabs_one  # TODO: add format
+        return self.config.templates.tabs_one
 
     @computed_field
     @property
     def formatted_tab_two(self) -> str:
-        return self.config.templates.tabs_two  # TODO: add format
+        return self.config.templates.tabs_two
 
     @computed_field
     @property
@@ -99,19 +96,17 @@ class ProductModel(BaseModel):
                 "",
                 self.price or "",
             ).strip()
-            logger.debug(
-                "SEO title formatted successfully",
-                formatted_seo_title=formatted,
+            logger.bind(formatted_seo_title=formatted).debug(
+                "SEO title formatted successfully"
             )
             return formatted
         except (IndexError, KeyError) as e:
             fallback = f"{self.category} {self.model}, {self.year_of_release} год. {self.fuel}, цена {self.price} € — авто под заказ из Европы"
-            logger.error(
-                "SEO title formatting failed, using fallback",
+            logger.bind(
                 error=str(e),
                 error_type=type(e).__name__,
                 fallback_seo_title=fallback,
-            )
+            ).error("SEO title formatting failed, using fallback")
             return fallback
 
     @computed_field
@@ -134,19 +129,17 @@ class ProductModel(BaseModel):
                 "",
                 self.price or "",
             ).strip()
-            logger.debug(
-                "SEO description formatted successfully",
-                formatted_seo_description=formatted,
+            logger.bind(formatted_seo_description=formatted).debug(
+                "SEO description formatted successfully"
             )
             return formatted
         except (IndexError, KeyError) as e:
             fallback = f"Купить авто из Европы под заказ {self.category} {self.model}, {self.year_of_release} за {self.price}€. Прозрачная история. Реальный пробег."
-            logger.error(
-                "SEO description formatting failed, using fallback",
+            logger.bind(
                 error=str(e),
                 error_type=type(e).__name__,
                 fallback_seo_description=fallback,
-            )
+            ).error("SEO description formatting failed, using fallback")
             return fallback
 
     @computed_field
@@ -156,9 +149,8 @@ class ProductModel(BaseModel):
         formatted = (
             f"{self.config.templates.seo_keywords}, {brand_specific}".strip()
         )
-        logger.debug(
-            "SEO keywords formatted successfully",
-            formatted_seo_keywords=formatted,
+        logger.bind(formatted_seo_keywords=formatted).debug(
+            "SEO keywords formatted successfully"
         )
         return formatted
 
@@ -167,12 +159,11 @@ class ProductModel(BaseModel):
     def processed_text(self) -> str:
         processed = self.apply_text_replacements(self.text)
         final_text = f"{self.config.templates.start_text}{processed}"
-        logger.debug(
-            "Text processed successfully",
+        logger.bind(
             original_length=len(self.text),
             processed_length=len(processed),
             final_length=len(final_text),
-        )
+        ).debug("Text processed successfully")
         return final_text
 
     def apply_text_replacements(self, text: List[str]) -> str:
@@ -180,8 +171,8 @@ class ProductModel(BaseModel):
             return ""
         replacements = self.config.data.replacement_rules
         if not replacements:
-            logger.debug(
-                "No replacement rules available", text_length=len(text)
+            logger.bind(text_length=len(text)).debug(
+                "No replacement rules available"
             )
             return "<br />".join(text)
         result = text
@@ -192,72 +183,70 @@ class ProductModel(BaseModel):
                     item.replace(original, replacement) for item in result
                 ]
                 replacements_made += 1
-        logger.debug(
-            "Text replacements applied",
+        logger.bind(
             original_length=len(text),
             final_length=len(result),
             replacements_made=replacements_made,
             total_rules=len(replacements),
-        )
+        ).debug("Text replacements applied")
         return "<br />".join(result)
 
     def is_dealer_excluded(self) -> bool:
         dealer_exclusions = self.config.data.dealer_exclusions
         if not dealer_exclusions:
-            logger.debug("No dealer exclusions configured", dealer=self.dealer)
+            logger.bind(dealer=self.dealer).debug(
+                "No dealer exclusions configured"
+            )
             return False
         excluded = self.dealer in dealer_exclusions
-        logger.debug(
-            "Dealer exclusion check completed",
+        logger.bind(
             dealer=self.dealer,
             is_excluded=excluded,
             total_exclusions=len(dealer_exclusions),
-        )
+        ).debug("Dealer exclusion check completed")
         return excluded
 
     def is_brand_excluded(self) -> bool:
         brand_exclusions = self.config.data.brand_exclusions
         if not brand_exclusions:
-            logger.debug("No brand exclusions configured", brand=self.model)
+            logger.bind(brand=self.model).debug(
+                "No brand exclusions configured"
+            )
             return False
         excluded = self.model in brand_exclusions
-        logger.debug(
-            "Brand exclusion check completed",
+        logger.bind(
             brand=self.model,
             is_excluded=excluded,
             total_exclusions=len(brand_exclusions),
-        )
+        ).debug("Brand exclusion check completed")
         return excluded
 
     def check_exclusions(self) -> None:
         if self.is_dealer_excluded():
-            logger.warning(
-                "Product excluded due to dealer exclusion",
+            logger.bind(
                 dealer=self.dealer,
                 model=self.model,
                 url=self.url,
-            )
+            ).warning("Product excluded due to dealer exclusion")
             raise ModelExclusionError(
                 f"Dealer '{self.dealer}' is in exclusion list"
             )
 
         if self.is_brand_excluded():
-            logger.warning(
-                "Product excluded due to brand exclusion",
+            logger.bind(
                 brand=self.model,
                 dealer=self.dealer,
                 url=self.url,
-            )
+            ).warning("Product excluded due to brand exclusion")
             raise ModelExclusionError(
                 f"Brand '{self.model}' is in exclusion list"
             )
 
-        logger.debug(
-            "Product passed all exclusion checks",
+        logger.bind(
             dealer=self.dealer,
             brand=self.model,
             url=self.url,
-        )
+        ).debug("Product passed all exclusion checks")
 
     def get_processed_images(self) -> List[str]:
         if not self.images:
@@ -268,25 +257,23 @@ class ProductModel(BaseModel):
         if image_exclusions and self.dealer in image_exclusions:
             rules = image_exclusions[self.dealer]
             processed_images = self._apply_image_exclusions(self.images, rules)
-            logger.debug(
-                "Dealer-specific image exclusions applied",
+            logger.bind(
                 dealer=self.dealer,
                 original_count=original_count,
                 processed_count=len(processed_images),
                 rules=rules,
-            )
+            ).debug("Dealer-specific image exclusions applied")
             return processed_images
         if self.config.parser.exclude_ads_pictures > 0:
             min_images = self.config.parser.exclude_ads_pictures + 1
             if original_count < min_images:
-                logger.debug(
-                    "Images excluded due to global minimum requirement",
+                logger.bind(
                     image_count=original_count,
                     minimum_required=min_images,
-                )
+                ).debug("Images excluded due to global minimum requirement")
                 return []
-        logger.debug(
-            "Images processed without exclusions", final_count=original_count
+        logger.bind(final_count=original_count).debug(
+            "Images processed without exclusions"
         )
         return self.images
 
@@ -302,33 +289,29 @@ class ProductModel(BaseModel):
             start_count = int(start_remove)
             if start_count > 0 and len(result) > start_count:
                 result = result[start_count:]
-                logger.debug(
-                    "Removed images from start",
+                logger.bind(
                     removed_count=start_count,
                     remaining_count=len(result),
-                )
+                ).debug("Removed images from start")
         penultimate = rules.get("penultimate", "*")
         if penultimate != "*" and len(result) >= 2:
             removed_image = result.pop(-2)
-            logger.debug(
-                "Removed penultimate image",
+            logger.bind(
                 removed_image_url=removed_image[:50] + "...",
                 remaining_count=len(result),
-            )
+            ).debug("Removed penultimate image")
         last = rules.get("last", "*")
         if last != "*" and len(result) >= 1:
             removed_image = result.pop(-1)
-            logger.debug(
-                "Removed last image",
+            logger.bind(
                 removed_image_url=removed_image[:50] + "...",
                 remaining_count=len(result),
-            )
-        logger.debug(
-            "Image exclusions applied successfully",
+            ).debug("Removed last image")
+        logger.bind(
             original_count=original_count,
             final_count=len(result),
             rules_applied=rules,
-        )
+        ).debug("Image exclusions applied successfully")
         return result
 
     def convert_price_to_rubles(self) -> Optional[str]:
@@ -339,29 +322,26 @@ class ProductModel(BaseModel):
             eur_price = float(self.price)
             exchange_rate = self.config.calculation.currency_exchange or 0.24
             if exchange_rate <= 0:
-                logger.warning(
-                    "Invalid exchange rate, using default",
+                logger.bind(
                     configured_rate=self.config.calculation.currency_exchange,
                     default_rate=0.24,
-                )
+                ).warning("Invalid exchange rate, using default")
                 exchange_rate = 0.24
             rub_price = eur_price / exchange_rate
             formatted_price = f"{int(rub_price):,}".replace(",", " ")
-            logger.debug(
-                "Price conversion completed",
+            logger.bind(
                 eur_price=eur_price,
                 exchange_rate=exchange_rate,
                 rub_price=int(rub_price),
                 formatted_price=formatted_price,
-            )
+            ).debug("Price conversion completed")
             return formatted_price
         except (ValueError, AttributeError) as e:
-            logger.error(
-                "Price conversion failed",
+            logger.bind(
                 error=str(e),
                 error_type=type(e).__name__,
                 original_price=self.price,
-            )
+            ).error("Price conversion failed")
             return None
 
     def to_csv_dict(self) -> Dict[str, str]:
@@ -402,25 +382,22 @@ class ProductModel(BaseModel):
                 "Tabs:1": self.formatted_tab_one,
                 "Tabs:2": self.formatted_tab_two,
             }
-            logger.info(
-                "CSV dictionary created successfully",
+            logger.bind(
                 total_fields=len(csv_dict),
                 processed_images_count=len(processed_images),
                 text_length=len(csv_dict.get("Text", "")),
-            )
+            ).info("CSV dictionary created successfully")
             return csv_dict
         except ModelExclusionError:
-            logger.warning(
-                "Product excluded due to exclusion checks",
+            logger.bind(
                 dealer=self.dealer,
                 brand=self.model,
                 url=self.url,
-            )
+            ).warning("Product excluded due to exclusion checks")
             return {}
         except Exception as e:
-            logger.error(
-                "Failed to create CSV dictionary",
+            logger.bind(
                 error=str(e),
                 error_type=type(e).__name__,
-            )
+            ).error("Failed to create CSV dictionary")
             raise e

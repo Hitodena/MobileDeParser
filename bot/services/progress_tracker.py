@@ -26,9 +26,11 @@ class ProgressTracker:
 
         self._update_task = asyncio.create_task(self._periodic_update())
 
-        logger.info(
-            f"Progress tracking started for {total_start_urls} start URLs"
-        )
+        logger.bind(
+            service="ProgressTracker",
+            total_start_urls=total_start_urls,
+            chat_id=self.chat_id,
+        ).info("Progress tracking started")
 
     async def update_progress(
         self,
@@ -59,9 +61,12 @@ class ProgressTracker:
 
         await self._send_progress_message(final=True)
 
-        logger.info(
-            f"Progress tracking completed: {'success' if success else 'error'}"
-        )
+        logger.bind(
+            service="ProgressTracker",
+            chat_id=self.chat_id,
+            success=success,
+            error_message=error_message,
+        ).info("Progress tracking completed")
 
     async def _send_progress_message(self, final: bool = False):
         message_text = self._format_progress_message(final)
@@ -80,7 +85,12 @@ class ProgressTracker:
                 self.progress_message_id = message.message_id
 
         except Exception as e:
-            logger.error(f"Failed to send progress message: {e}")
+            logger.bind(
+                service="ProgressTracker",
+                chat_id=self.chat_id,
+                error_type=type(e).__name__,
+                error_message=str(e),
+            ).error("Failed to send progress message")
 
     def _format_progress_message(self, final: bool = False) -> str:
         status_emoji = {
@@ -119,9 +129,6 @@ class ProgressTracker:
         if self.progress.error_message:
             message += f"\n❌ Ошибка: {self.progress.error_message}"
 
-        if final and self.progress.status == "completed":
-            message += "\n\n✅ Парсинг завершен! Результаты будут отправлены отдельным сообщением."
-
         return message
 
     async def _periodic_update(self):
@@ -132,5 +139,10 @@ class ProgressTracker:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"Error in periodic update: {e}")
+                logger.bind(
+                    service="ProgressTracker",
+                    chat_id=self.chat_id,
+                    error_type=type(e).__name__,
+                    error_message=str(e),
+                ).error("Error in periodic update")
                 break
