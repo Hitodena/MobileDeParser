@@ -45,7 +45,7 @@ class ParserManager:
                 if not url.startswith(
                     "https://mobile.de/ru/"
                 ) and not url.startswith("https://www.mobile.de/ru/"):
-                    error_msg = f"❌ Ошибка: Неверный формат URL. Ожидается URL начинающийся с 'https://mobile.de/ru/', получен: {url}"
+                    error_msg = f"• Ошибка: Неверный формат URL. Ожидается URL начинающийся с 'https://mobile.de/ru/', получен: {url}"
                     await self.bot.send_message(chat_id, error_msg)
                     return "Парсинг не запущен из-за ошибки в URL"
 
@@ -86,7 +86,7 @@ class ParserManager:
             return "Парсинг запущен"
 
         except Exception as e:
-            error_msg = f"❌ Ошибка при запуске парсинга: {str(e)}"
+            error_msg = f"• Ошибка при запуске парсинга: {str(e)}"
             await self.bot.send_message(chat_id, error_msg)
             logger.bind(
                 chat_id=chat_id,
@@ -138,17 +138,17 @@ class ParserManager:
         try:
             if not products:
                 await self.bot.send_message(
-                    chat_id, "❌ Парсинг завершен, но результаты не найдены"
+                    chat_id, "• Парсинг завершен, но результаты не найдены"
                 )
                 return
 
             await self.bot.send_message(
                 chat_id,
-                f"📦 Парсинг завершен!\n"
-                f"✅ Найдено товаров: {len(products)}\n"
-                f"💾 Новых сохранено: {saved_count}\n"
-                f"💾 Все продукты сохранены в базу данных\n\n"
-                f"💡 Используйте /exportdb для создания архива всех продуктов",
+                f"• Парсинг завершен!\n"
+                f"• Найдено товаров: {len(products)}\n"
+                f"• Новых сохранено: {saved_count}\n"
+                f"• Все продукты сохранены в базу данных\n\n"
+                f"• Используйте /exportdb для создания архива всех продуктов",
             )
             logger.bind(chat_id=chat_id, products_count=len(products)).info(
                 "Parsing completed for chat"
@@ -161,7 +161,7 @@ class ParserManager:
                 error_message=str(e),
             ).error("Failed to send results")
             await self.bot.send_message(
-                chat_id, f"❌ Ошибка при отправке результатов: {str(e)}"
+                chat_id, f"• Ошибка при отправке результатов: {str(e)}"
             )
 
     async def close(self):

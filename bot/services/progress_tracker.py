@@ -94,13 +94,13 @@ class ProgressTracker:
 
     def _format_progress_message(self, final: bool = False) -> str:
         status_emoji = {
-            "idle": "⏸️",
-            "running": "🔄",
-            "completed": "✅",
-            "error": "❌",
+            "idle": "•",
+            "running": "•",
+            "completed": "•",
+            "error": "•",
         }
 
-        emoji = status_emoji.get(self.progress.status, "❓")
+        emoji = status_emoji.get(self.progress.status, "•")
         status_text = {
             "idle": "Ожидание",
             "running": "Выполняется",
@@ -109,25 +109,25 @@ class ProgressTracker:
         }
 
         message = f"{emoji} <b>Парсинг Mobile.de</b>\n\n"
-        message += f"📊 Статус: {status_text[self.progress.status]}\n"
+        message += f"• Статус: {status_text[self.progress.status]}\n"
 
         if self.progress.total_urls > 0:
             message += f"📈 Прогресс: {self.progress.processed_urls}/{self.progress.total_urls} "
             message += f"({self.progress.progress_percentage:.1f}%)\n"
 
         if self.total_links_found > 0:
-            message += f"🔗 Найдено ссылок: {self.total_links_found}\n"
-        message += f"🛒 Найдено товаров: {self.progress.found_products}\n"
+            message += f"• Найдено ссылок: {self.total_links_found}\n"
+        message += f"• Найдено товаров: {self.progress.found_products}\n"
 
         if self.progress.elapsed_time > 0:
             elapsed_minutes = int(self.progress.elapsed_time // 60)
             elapsed_seconds = int(self.progress.elapsed_time % 60)
             message += (
-                f"⏱️ Время: {elapsed_minutes:02d}:{elapsed_seconds:02d}\n"
+                f"• Время: {elapsed_minutes:02d}:{elapsed_seconds:02d}\n"
             )
 
         if self.progress.error_message:
-            message += f"\n❌ Ошибка: {self.progress.error_message}"
+            message += f"\n• Ошибка: {self.progress.error_message}"
 
         return message
 
