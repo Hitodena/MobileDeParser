@@ -32,49 +32,64 @@ class ParserManager:
     async def start_parsing(
         self, chat_id: int, start_urls: Optional[List[str]] = None
     ):
-        if self.current_task and not self.current_task.done():
-            return "Парсинг уже запущен"
+        try:
+            if self.current_task and not self.current_task.done():
+                return "Парсинг уже запущен"
 
-        self.notification_chat_id = chat_id
+            self.notification_chat_id = chat_id
 
-        if start_urls is None:
-            start_urls = self.config.parser.links
+            if start_urls is None:
+                start_urls = self.config.parser.links
 
-        self.progress_tracker = ProgressTracker(self.bot, chat_id)
+            for url in start_urls:
+                if not url.startswith(
+                    "https://mobile.de/ru/"
+                ) and not url.startswith("https://www.mobile.de/ru/"):
+                    error_msg = f"❌ Ошибка: Неверный формат URL. Ожидается URL начинающийся с 'https://mobile.de/ru/', получен: {url}"
+                    await self.bot.send_message(chat_id, error_msg)
+                    return "Парсинг не запущен из-за ошибки в URL"
 
-        await self.progress_tracker.start_tracking(len(start_urls))
+            self.progress_tracker = ProgressTracker(self.bot, chat_id)
 
-        def parsing_callback(
-            result_tuple: Tuple[List[ProductModel], Optional[Path], int],
-        ):
-            asyncio.create_task(
-                self._handle_parsing_result(chat_id, result_tuple)
-            )
+            await self.progress_tracker.start_tracking(len(start_urls))
 
-        def progress_callback(
-            processed_urls: int,
-            found_products: int,
-            total_links_found: int = 0,
-        ):
-            if self.progress_tracker:
+            def parsing_callback(
+                result_tuple: Tuple[List[ProductModel], Optional[Path], int],
+            ):
                 asyncio.create_task(
-                    self.progress_tracker.update_progress(
-                        processed_urls, found_products, total_links_found
+                    self._handle_parsing_result(chat_id, result_tuple)
+                )
+
+            def progress_callback(
+                processed_urls: int,
+                found_products: int,
+                total_links_found: int = 0,
+            ):
+                if self.progress_tracker:
+                    asyncio.create_task(
+                        self.progress_tracker.update_progress(
+                            processed_urls, found_products, total_links_found
+                        )
+                    )
+
+            if self.scheduler:
+                self.current_task = asyncio.create_task(
+                    self.scheduler.start_cyclic_parsing(
+                        start_urls=start_urls,
+                        callback=parsing_callback,
+                        parser_class=MobileDeRuParser,
+                        progress_callback=progress_callback,
                     )
                 )
 
-        if self.scheduler:
-            self.current_task = asyncio.create_task(
-                self.scheduler.start_cyclic_parsing(
-                    start_urls=start_urls,
-                    callback=parsing_callback,
-                    parser_class=MobileDeRuParser,
-                    progress_callback=progress_callback,
-                )
-            )
+            logger.info(f"Parsing started for chat {chat_id}")
+            return "Парсинг запущен"
 
-        logger.info(f"Parsing started for chat {chat_id}")
-        return "Парсинг запущен"
+        except Exception as e:
+            error_msg = f"❌ Ошибка при запуске парсинга: {str(e)}"
+            await self.bot.send_message(chat_id, error_msg)
+            logger.error(f"Failed to start parsing for chat {chat_id}: {e}")
+            return "Парсинг не запущен из-за ошибки"
 
     async def stop_parsing(self):
         if self.current_task and not self.current_task.done():

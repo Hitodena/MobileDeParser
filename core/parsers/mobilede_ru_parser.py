@@ -11,6 +11,13 @@ from shared.config.config import config
 
 class MobileDeRuParser(BaseParser):
     def __init__(self, raw_html: str, base_url: str, url: str):
+        if not url.startswith("https://mobile.de/ru/") and not url.startswith(
+            "https://www.mobile.de/ru/"
+        ):
+            raise ValueError(
+                f"Неверный формат URL. Ожидается URL начинающийся с 'https://mobile.de/ru/', получен: {url}"
+            )
+
         super().__init__(raw_html, base_url, url)
 
         self.mobilede_logger = self.parser_logger.bind(
