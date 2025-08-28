@@ -72,8 +72,16 @@ class HTTPClient:
                     user_agent=session_headers.get("User-Agent", "unknown")
                 )
 
+                formatted_proxy = (
+                    self.proxy_manager.format_proxy_for_aiohttp(proxy)
+                    if proxy
+                    else None
+                )
+
                 async with self._create_session() as session:
-                    async with session.get(url, proxy=proxy) as response:
+                    async with session.get(
+                        url, proxy=formatted_proxy
+                    ) as response:
                         response.raise_for_status()
                         content = await response.text()
 

@@ -30,7 +30,7 @@ class ProxyManager:
         if not proxy_string:
             return None
 
-        formatted_proxy = self._format_proxy_for_aiohttp(proxy_string)
+        formatted_proxy = self.format_proxy_for_aiohttp(proxy_string)
         if not formatted_proxy:
             return None
 
@@ -184,7 +184,10 @@ class ProxyManager:
     async def initialize(self) -> None:
         await self.load_and_verify_proxies()
 
-    def _format_proxy_for_aiohttp(self, proxy_string: str) -> str:
+    def format_proxy_for_aiohttp(self, proxy_string: str) -> str | None:
+        if not proxy_string:
+            return None
+
         if "://" in proxy_string:
             return proxy_string
 
