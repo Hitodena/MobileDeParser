@@ -57,7 +57,7 @@ class DatabaseService:
             if not csv_dict:
                 return False
 
-            db_product = self._convert_to_db_model(product, csv_dict)
+            db_product = self._convert_to_db_model(product)
 
             with self.get_session() as session:
                 session.add(db_product)
@@ -98,36 +98,35 @@ class DatabaseService:
 
         return new_count, duplicate_count
 
-    def _convert_to_db_model(
-        self, product: ProductModel, csv_dict: dict
-    ) -> ProductDB:
+    def _convert_to_db_model(self, product: ProductModel) -> ProductDB:
         images_json = json.dumps(product.images) if product.images else ""
 
         return ProductDB(
-            sku=product.sku,
-            category=product.category or "",
-            model=product.model or "",
-            year_of_release=product.year_of_release or "",
-            mileage=product.mileage or "",
-            transmission=product.transmission or "",
-            fuel=product.fuel or "",
-            engine_volume=product.engine_volume or "",
-            body=product.body or "",
-            color=product.color or "",
-            door_count=product.door_count or "",
-            seat_count=product.seat_count or "",
-            owner_count=product.owner_count or "",
-            price=product.price or "",
-            text=csv_dict.get("Text", ""),
+            title=product.formatted_title,
+            category=product.category,
+            model=product.model,
+            year_of_release=product.year_of_release,
+            mileage=product.mileage,
+            transmission=product.transmission,
+            fuel=product.fuel,
+            engine_volume=product.engine_volume,
+            body=product.body,
+            color=product.color,
+            door_count=product.door_count,
+            seat_count=product.seat_count,
+            owner_count=product.owner_count,
+            price=product.price,
+            text=product.processed_text,
             images=images_json,
-            url=product.url or "",
-            dealer=product.dealer or "",
-            seo_title=csv_dict.get("SEO title", ""),
-            seo_description=csv_dict.get("SEO descr", ""),
-            seo_keywords=csv_dict.get("SEO keywords", ""),
-            seo_alt=csv_dict.get("SEO alt", ""),
-            tab_one=csv_dict.get("Tabs:1", ""),
-            tab_two=csv_dict.get("Tabs:2", ""),
+            url=product.url,
+            dealer=product.dealer,
+            sku=product.sku,
+            seo_title=product.formatted_seo_title,
+            seo_description=product.formatted_seo_description,
+            seo_keywords=product.formatted_seo_keywords,
+            seo_alt=product.formatted_title,
+            tab_one=product.formatted_tab_one,
+            tab_two=product.formatted_tab_two,
         )
 
     def get_all_products(self) -> List[Dict]:
@@ -137,7 +136,7 @@ class DatabaseService:
 
     def _db_to_dict(self, db_product: ProductDB) -> Dict:
         return {
-            "Title": f"{db_product.category} {db_product.model}, {db_product.year_of_release}",
+            "Title": db_product.title,
             "Category": db_product.category,
             "Characteristics: модель": db_product.model,
             "Characteristics: год выпуска": db_product.year_of_release,
@@ -200,7 +199,7 @@ class DatabaseService:
 
     def _create_insert_statement(self, product: ProductDB) -> str:
         fields = [
-            "sku",
+            "title",
             "category",
             "model",
             "year_of_release",
@@ -218,6 +217,7 @@ class DatabaseService:
             "images",
             "url",
             "dealer",
+            "sku",
             "seo_title",
             "seo_description",
             "seo_keywords",
@@ -229,7 +229,7 @@ class DatabaseService:
         ]
 
         values = [
-            f"'{product.sku}'",
+            f"'{product.title or ''}'",
             f"'{product.category or ''}'",
             f"'{product.model or ''}'",
             f"'{product.year_of_release or ''}'",
@@ -247,6 +247,7 @@ class DatabaseService:
             f"'{product.images or ''}'",
             f"'{product.url or ''}'",
             f"'{product.dealer or ''}'",
+            f"'{product.sku}'",
             f"'{product.seo_title or ''}'".replace("'", "''"),
             f"'{product.seo_description or ''}'".replace("'", "''"),
             f"'{product.seo_keywords or ''}'".replace("'", "''"),

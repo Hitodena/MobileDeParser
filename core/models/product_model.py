@@ -45,11 +45,11 @@ class ProductModel(BaseModel):
     def formatted_title(self) -> str:
         try:
             formatted = self.config.templates.title.format(
-                self.category or "",
-                self.model or "",
-                self.year_of_release or "",
-                self.mileage or "",
-                self.transmission or "",
+                self.category,
+                self.model,
+                self.year_of_release,
+                self.mileage,
+                self.transmission,
             ).strip()
             logger.bind(formatted_title=formatted).debug(
                 "Title formatted successfully"
@@ -81,9 +81,9 @@ class ProductModel(BaseModel):
     def formatted_seo_title(self) -> str:
         try:
             formatted = self.config.templates.seo_title.format(
-                self.category or "",
-                self.model or "",
-                self.year_of_release or "",
+                self.category,
+                self.model,
+                self.year_of_release,
                 "",
                 "",
                 "",
@@ -114,9 +114,9 @@ class ProductModel(BaseModel):
     def formatted_seo_description(self) -> str:
         try:
             formatted = self.config.templates.seo_description.format(
-                self.category or "",
-                self.model or "",
-                self.year_of_release or "",
+                self.category,
+                self.model,
+                self.year_of_release,
                 "",
                 "",
                 "",

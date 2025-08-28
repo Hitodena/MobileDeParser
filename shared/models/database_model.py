@@ -10,7 +10,7 @@ class ProductDB(Base):
     __tablename__ = "products"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    sku = Column(String(255), unique=True, nullable=False, index=True)
+    title = Column(String(255), nullable=False)
     category = Column(String(255), nullable=False)
     model = Column(String(255), nullable=False)
     year_of_release = Column(String(50), nullable=False)
@@ -28,15 +28,13 @@ class ProductDB(Base):
     images = Column(Text, nullable=False)
     url = Column(String(500), nullable=False)
     dealer = Column(String(255), nullable=False)
-
+    sku = Column(String(255), unique=True, nullable=False, index=True)
     seo_title = Column(Text, nullable=False)
     seo_description = Column(Text, nullable=False)
     seo_keywords = Column(Text, nullable=False)
     seo_alt = Column(Text, nullable=False)
-
     tab_one = Column(Text, nullable=False)
     tab_two = Column(Text, nullable=False)
-
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(
         DateTime, default=func.now(), onupdate=func.now(), nullable=False
