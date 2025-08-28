@@ -158,6 +158,7 @@ class DatabaseService:
             "SEO title": db_product.seo_title,
             "SEO descr": db_product.seo_description,
             "SEO keywords": db_product.seo_keywords,
+            "SEO alt": db_product.seo_alt,
             "Tabs:1": db_product.tab_one,
             "Tabs:2": db_product.tab_two,
         }

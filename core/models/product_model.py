@@ -424,6 +424,7 @@ class ProductModel(BaseModel):
                 "SEO title": self.formatted_seo_title,
                 "SEO descr": self.formatted_seo_description,
                 "SEO keywords": self.formatted_seo_keywords,
+                "SEO alt": self.formatted_title,
                 "Tabs:1": self.formatted_tab_one,
                 "Tabs:2": self.formatted_tab_two,
             }
