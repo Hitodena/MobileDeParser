@@ -11,6 +11,7 @@ from bot.services.progress_tracker import ProgressTracker
 from core.models.product_model import ProductModel
 from core.parsers.mobilede_ru_parser import MobileDeRuParser
 from core.services.scheduler_service import SchedulerService
+from shared.exceptions.request_exceptions import OutOfProxiesException
 
 
 class ParserManager:
@@ -60,6 +61,9 @@ class ParserManager:
                     self._handle_parsing_result(chat_id, result_tuple)
                 )
 
+            def error_callback(error: Exception):
+                asyncio.create_task(self._handle_parsing_error(chat_id, error))
+
             def progress_callback(
                 processed_urls: int,
                 found_products: int,
@@ -77,6 +81,7 @@ class ParserManager:
                     self.scheduler.start_cyclic_parsing(
                         start_urls=start_urls,
                         callback=parsing_callback,
+                        error_callback=error_callback,
                         parser_class=MobileDeRuParser,
                         progress_callback=progress_callback,
                     )
@@ -85,6 +90,21 @@ class ParserManager:
             logger.bind(chat_id=chat_id).info("Parsing started for chat")
             return "Парсинг запущен"
 
+        except OutOfProxiesException as e:
+            error_msg = (
+                f"• Ошибка: Не осталось рабочих прокси!\n\n"
+                f"• Парсинг остановлен из-за отсутствия рабочих прокси.\n"
+                f"• Необходимо обновить список прокси в конфигурации.\n"
+                f"• Проверьте файл: {self.config.parser.proxy_file}\n\n"
+                f"• После обновления прокси перезапустите парсинг командой /start"
+            )
+            await self.bot.send_message(chat_id, error_msg)
+            logger.bind(
+                chat_id=chat_id,
+                error_type=type(e).__name__,
+                error_message=str(e),
+            ).error("No working proxies available for chat")
+            return "Парсинг не запущен из-за отсутствия рабочих прокси"
         except Exception as e:
             error_msg = f"• Ошибка при запуске парсинга: {str(e)}"
             await self.bot.send_message(chat_id, error_msg)
@@ -163,6 +183,34 @@ class ParserManager:
             await self.bot.send_message(
                 chat_id, f"• Ошибка при отправке результатов: {str(e)}"
             )
+
+    async def _handle_parsing_error(
+        self,
+        chat_id: int,
+        error: Exception,
+    ):
+        if self.progress_tracker:
+            await self.progress_tracker.complete_tracking(
+                success=False, error_message="Ошибка парсинга"
+            )
+
+        if isinstance(error, OutOfProxiesException):
+            error_msg = (
+                f"• Ошибка: Не осталось рабочих прокси!\n\n"
+                f"• Парсинг остановлен из-за отсутствия рабочих прокси.\n"
+                f"• Необходимо обновить список прокси в конфигурации.\n"
+                f"• Проверьте файл: {self.config.parser.proxy_file}\n\n"
+                f"• После обновления прокси перезапустите парсинг командой /start"
+            )
+        else:
+            error_msg = f"• Ошибка парсинга: {str(error)}"
+
+        await self.bot.send_message(chat_id, error_msg)
+        logger.bind(
+            chat_id=chat_id,
+            error_type=type(error).__name__,
+            error_message=str(error),
+        ).error("Parsing error occurred for chat")
 
     async def close(self):
         await self.stop_parsing()

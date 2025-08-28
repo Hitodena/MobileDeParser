@@ -11,6 +11,7 @@ from aiohttp import (
 )
 from loguru import logger
 
+from shared.exceptions.request_exceptions import OutOfProxiesException
 from shared.utils.generate_headers import generate_headers
 
 
@@ -107,7 +108,7 @@ class ProxyManager:
         if not proxies:
             loader_logger.warning("No proxies found in file")
             self.valid_proxies = []
-            return None
+            raise OutOfProxiesException("No proxies found in file")
 
         loader_logger.bind(raw_proxy_count=len(proxies)).info(
             "Starting proxy validation"
@@ -121,7 +122,7 @@ class ProxyManager:
 
         if not self.valid_proxies:
             loader_logger.error("No valid proxies found during validation")
-            return None
+            raise OutOfProxiesException("No valid proxies found during validation")
 
         loader_logger.bind(
             valid_proxies=valid_count,
@@ -132,9 +133,9 @@ class ProxyManager:
         random.shuffle(self.valid_proxies)
         loader_logger.debug("Proxies shuffled for better distribution")
 
-    def get_next_proxy(self) -> str | None:
+    def get_next_proxy(self) -> str:
         if not self.valid_proxies:
-            return None
+            raise OutOfProxiesException("No valid proxies available")
 
         proxy = self.valid_proxies[self._current_proxy_index]
         self._current_proxy_index = (self._current_proxy_index + 1) % len(
@@ -142,20 +143,18 @@ class ProxyManager:
         )
         return proxy
 
-    def get_random_proxy(self) -> str | None:
+    def get_random_proxy(self) -> str:
         if not self.valid_proxies:
-            return None
+            raise OutOfProxiesException("No valid proxies available")
         return random.choice(self.valid_proxies)
 
-    def get_proxy_for_request(
-        self, is_first_request: bool = True
-    ) -> str | None:
+    def get_proxy_for_request(self, is_first_request: bool = True) -> str:
         if not self.valid_proxies:
             logger.bind(
                 available_proxies=0,
                 request_type="first" if is_first_request else "retry",
             ).debug("No proxies available for request")
-            return None
+            raise OutOfProxiesException("No valid proxies available")
 
         proxy_type = "random" if is_first_request else "sequential"
         if is_first_request:
@@ -183,7 +182,7 @@ class ProxyManager:
     async def initialize(self) -> None:
         await self.load_and_verify_proxies()
 
-    def _format_proxy_for_aiohttp(self, proxy_string: str) -> str | None:
+    def _format_proxy_for_aiohttp(self, proxy_string: str) -> str:
         if "://" not in proxy_string:
             return f"http://{proxy_string}"
         return proxy_string

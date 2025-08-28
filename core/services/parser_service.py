@@ -7,6 +7,7 @@ from loguru import logger
 from core.models.product_model import ProductModel
 from core.parsers.base_parser import BaseParser
 from shared.config.config_model import ConfigModel
+from shared.exceptions.request_exceptions import OutOfProxiesException
 from shared.services.database_service import DatabaseService
 from shared.services.http_client import HTTPClient
 from shared.utils.proxy_manager import ProxyManager
@@ -86,6 +87,11 @@ class ParserService:
 
                 return links
 
+            except OutOfProxiesException as e:
+                self.service_logger.bind(
+                    url=url, error_type=type(e).__name__, error_message=str(e)
+                ).error("No working proxies available")
+                raise
             except Exception as e:
                 self.service_logger.bind(
                     url=url, error_type=type(e).__name__, error_message=str(e)
@@ -152,6 +158,11 @@ class ParserService:
 
                 return product_data
 
+            except OutOfProxiesException as e:
+                self.service_logger.bind(
+                    url=url, error_type=type(e).__name__, error_message=str(e)
+                ).error("No working proxies available")
+                raise
             except Exception as e:
                 self.service_logger.bind(
                     url=url, error_type=type(e).__name__, error_message=str(e)
@@ -246,6 +257,15 @@ class ParserService:
                         processed_start_urls, 0, len(all_links)
                     )
 
+                except OutOfProxiesException as e:
+                    error_msg = f"No working proxies available: {str(e)}"
+                    parsing_errors.append(error_msg)
+                    self.service_logger.bind(
+                        batch_urls=batch_urls,
+                        error_type=type(e).__name__,
+                        error_message=str(e),
+                    ).error("No working proxies available, stopping parsing")
+                    raise
                 except Exception as e:
                     error_msg = f"Failed to parse links batch: {str(e)}"
                     parsing_errors.append(error_msg)
@@ -278,6 +298,14 @@ class ParserService:
                 products = await self.parse_products_batch(
                     unique_links, parser_class
                 )
+            except OutOfProxiesException as e:
+                error_msg = f"No working proxies available: {str(e)}"
+                parsing_errors.append(error_msg)
+                self.service_logger.bind(
+                    error_type=type(e).__name__,
+                    error_message=str(e),
+                ).error("No working proxies available, stopping parsing")
+                raise
             except Exception as e:
                 error_msg = f"Failed to parse products: {str(e)}"
                 parsing_errors.append(error_msg)

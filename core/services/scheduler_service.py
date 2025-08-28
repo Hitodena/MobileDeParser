@@ -11,6 +11,7 @@ from core.parsers.base_parser import BaseParser
 from core.parsers.mobilede_ru_parser import MobileDeRuParser
 from core.services.parser_service import ParserService
 from shared.config.config_model import ConfigModel
+from shared.exceptions.request_exceptions import OutOfProxiesException
 
 
 class SchedulerService:
@@ -44,6 +45,7 @@ class SchedulerService:
         callback: Optional[
             Callable[[Tuple[List[ProductModel], int]], None]
         ] = None,
+        error_callback: Optional[Callable[[Exception], None]] = None,
         parser_class: Type[BaseParser] = MobileDeRuParser,
         progress_callback: Optional[Callable[[int, int, int], None]] = None,
     ):
@@ -87,6 +89,36 @@ class SchedulerService:
                                 error_message=str(e),
                             ).error("Callback execution failed")
 
+                except OutOfProxiesException as e:
+                    self.scheduler_logger.bind(
+                        error_type=type(e).__name__, error_message=str(e)
+                    ).error("No working proxies available, stopping scheduler")
+
+                    if error_callback:
+                        try:
+                            error_callback(e)
+                            self.scheduler_logger.info(
+                                "Sent proxy error to callback"
+                            )
+                        except Exception as callback_error:
+                            self.scheduler_logger.bind(
+                                error_type=type(callback_error).__name__,
+                                error_message=str(callback_error),
+                            ).error("Failed to send proxy error to callback")
+                    elif callback:
+                        try:
+                            empty_result = ([], 0)
+                            callback(empty_result)
+                            self.scheduler_logger.info(
+                                "Sent empty results due to proxy failure"
+                            )
+                        except Exception as callback_error:
+                            self.scheduler_logger.bind(
+                                error_type=type(callback_error).__name__,
+                                error_message=str(callback_error),
+                            ).error("Failed to send empty results to callback")
+
+                    break
                 except Exception as e:
                     self.scheduler_logger.bind(
                         error_type=type(e).__name__, error_message=str(e)
@@ -148,6 +180,7 @@ class SchedulerService:
         self,
         start_urls: List[str],
         progress_callback: Optional[Callable[[int, int, int], None]] = None,
+        error_callback: Optional[Callable[[Exception], None]] = None,
     ) -> Tuple[List[ProductModel], Optional[Path], int]:
         self.scheduler_logger.bind(urls_count=len(start_urls)).info(
             "Running single parsing cycle"
@@ -168,6 +201,21 @@ class SchedulerService:
 
             return result[0], result[1], result[2]
 
+        except OutOfProxiesException as e:
+            self.scheduler_logger.bind(
+                error_type=type(e).__name__, error_message=str(e)
+            ).error("No working proxies available")
+
+            if error_callback:
+                try:
+                    error_callback(e)
+                except Exception as callback_error:
+                    self.scheduler_logger.bind(
+                        error_type=type(callback_error).__name__,
+                        error_message=str(callback_error),
+                    ).error("Failed to send proxy error to callback")
+
+            raise
         except Exception as e:
             self.scheduler_logger.bind(
                 error_type=type(e).__name__, error_message=str(e)
