@@ -122,7 +122,9 @@ class ProxyManager:
 
         if not self.valid_proxies:
             loader_logger.error("No valid proxies found during validation")
-            raise OutOfProxiesException("No valid proxies found during validation")
+            raise OutOfProxiesException(
+                "No valid proxies found during validation"
+            )
 
         loader_logger.bind(
             valid_proxies=valid_count,
@@ -183,9 +185,15 @@ class ProxyManager:
         await self.load_and_verify_proxies()
 
     def _format_proxy_for_aiohttp(self, proxy_string: str) -> str:
-        if "://" not in proxy_string:
-            return f"http://{proxy_string}"
-        return proxy_string
+        if "://" in proxy_string:
+            return proxy_string
+
+        parts = proxy_string.split(":")
+        if len(parts) == 4:
+            ip, port, login, password = parts
+            return f"http://{login}:{password}@{ip}:{port}"
+
+        return f"http://{proxy_string}"
 
     def mark_proxy_as_failed(self, proxy: str) -> None:
         if proxy:
