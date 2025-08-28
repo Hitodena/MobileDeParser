@@ -42,23 +42,46 @@ class ProductModel(BaseModel):
 
     @computed_field
     @property
+    def processed_model(self) -> str:
+        return self.apply_text_replacements_to_string(self.model)
+
+    @computed_field
+    @property
+    def processed_transmission(self) -> str:
+        return self.apply_text_replacements_to_string(self.transmission)
+
+    @computed_field
+    @property
+    def processed_fuel(self) -> str:
+        return self.apply_text_replacements_to_string(self.fuel)
+
+    @computed_field
+    @property
+    def processed_body(self) -> str:
+        return self.apply_text_replacements_to_string(self.body)
+
+    @computed_field
+    @property
+    def processed_color(self) -> str:
+        return self.apply_text_replacements_to_string(self.color)
+
+    @computed_field
+    @property
     def formatted_title(self) -> str:
         try:
             formatted = self.config.templates.title.format(
                 self.category,
-                self.model,
+                self.processed_model,
                 self.year_of_release,
                 self.mileage,
-                self.transmission,
+                self.processed_transmission,
             ).strip()
             logger.bind(formatted_title=formatted).debug(
                 "Title formatted successfully"
             )
             return formatted
         except (IndexError, KeyError) as e:
-            fallback = (
-                f"{self.category} {self.model}, {self.year_of_release}".strip()
-            )
+            fallback = f"{self.category} {self.processed_model}, {self.year_of_release}".strip()
             logger.bind(
                 error=str(e),
                 error_type=type(e).__name__,
@@ -82,12 +105,12 @@ class ProductModel(BaseModel):
         try:
             formatted = self.config.templates.seo_title.format(
                 self.category,
-                self.model,
+                self.processed_model,
                 self.year_of_release,
                 "",
                 "",
                 "",
-                self.fuel or "",
+                self.processed_fuel or "",
                 "",
                 "",
                 "",
@@ -101,7 +124,7 @@ class ProductModel(BaseModel):
             )
             return formatted
         except (IndexError, KeyError) as e:
-            fallback = f"{self.category} {self.model}, {self.year_of_release} год. {self.fuel}, цена {self.price} € — авто под заказ из Европы"
+            fallback = f"{self.category} {self.processed_model}, {self.year_of_release} год. {self.processed_fuel}, цена {self.price} € — авто под заказ из Европы"
             logger.bind(
                 error=str(e),
                 error_type=type(e).__name__,
@@ -115,7 +138,7 @@ class ProductModel(BaseModel):
         try:
             formatted = self.config.templates.seo_description.format(
                 self.category,
-                self.model,
+                self.processed_model,
                 self.year_of_release,
                 "",
                 "",
@@ -134,7 +157,7 @@ class ProductModel(BaseModel):
             )
             return formatted
         except (IndexError, KeyError) as e:
-            fallback = f"Купить авто из Европы под заказ {self.category} {self.model}, {self.year_of_release} за {self.price}€. Прозрачная история. Реальный пробег."
+            fallback = f"Купить авто из Европы под заказ {self.category} {self.processed_model}, {self.year_of_release} за {self.price}€. Прозрачная история. Реальный пробег."
             logger.bind(
                 error=str(e),
                 error_type=type(e).__name__,
@@ -157,7 +180,7 @@ class ProductModel(BaseModel):
     @computed_field
     @property
     def processed_text(self) -> str:
-        processed = self.apply_text_replacements(self.text)
+        processed = self.apply_text_replacements_to_text_field(self.text)
         final_text = f"{self.config.templates.start_text}{processed}"
         logger.bind(
             original_length=len(self.text),
@@ -166,7 +189,7 @@ class ProductModel(BaseModel):
         ).debug("Text processed successfully")
         return final_text
 
-    def apply_text_replacements(self, text: List[str]) -> str:
+    def apply_text_replacements_to_text_field(self, text: List[str]) -> str:
         if not text:
             return ""
         replacements = self.config.data.replacement_rules
@@ -190,6 +213,29 @@ class ProductModel(BaseModel):
             total_rules=len(replacements),
         ).debug("Text replacements applied")
         return "<br />".join(result)
+
+    def apply_text_replacements_to_string(self, text: str) -> str:
+        if not text:
+            return ""
+        replacements = self.config.data.replacement_rules
+        if not replacements:
+            logger.bind(text_length=len(text)).debug(
+                "No replacement rules available for string"
+            )
+            return text
+        result = text
+        replacements_made = 0
+        for original, replacement in replacements.items():
+            if original in result:
+                result = result.replace(original, replacement)
+                replacements_made += 1
+        logger.bind(
+            original_text=text,
+            final_text=result,
+            replacements_made=replacements_made,
+            total_rules=len(replacements),
+        ).debug("String replacements applied")
+        return result
 
     def is_dealer_excluded(self) -> bool:
         dealer_exclusions = self.config.data.dealer_exclusions
@@ -358,14 +404,14 @@ class ProductModel(BaseModel):
             csv_dict = {
                 "Title": self.formatted_title,
                 "Category": self.category,
-                "Characteristics: модель": self.model,
+                "Characteristics: модель": self.processed_model,
                 "Characteristics: год выпуска": self.year_of_release,
                 "Characteristics: пробег": self.mileage,
-                "Characteristics: коробка": self.transmission,
-                "Characteristics: топливо": self.fuel,
+                "Characteristics: коробка": self.processed_transmission,
+                "Characteristics: топливо": self.processed_fuel,
                 "Characteristics: объем, см3": self.engine_volume,
-                "Characteristics: кузов": self.body,
-                "Characteristics: цвет": self.color,
+                "Characteristics: кузов": self.processed_body,
+                "Characteristics: цвет": self.processed_color,
                 "Characteristics: к-во дверей": self.door_count,
                 "Characteristics: к-во мест": self.seat_count,
                 "Characteristics: к-во владельцев": self.owner_count,
@@ -378,7 +424,6 @@ class ProductModel(BaseModel):
                 "SEO title": self.formatted_seo_title,
                 "SEO descr": self.formatted_seo_description,
                 "SEO keywords": self.formatted_seo_keywords,
-                "SEO alt": self.formatted_title,
                 "Tabs:1": self.formatted_tab_one,
                 "Tabs:2": self.formatted_tab_two,
             }
