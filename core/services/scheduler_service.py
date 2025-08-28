@@ -66,6 +66,43 @@ class SchedulerService:
                     cycle_start=cycle_start.isoformat()
                 ).info("Starting parsing cycle")
 
+                proxies_available = (
+                    await self.parser_service.check_and_refresh_proxies()
+                )
+                if not proxies_available:
+                    self.scheduler_logger.error(
+                        "No working proxies available at cycle start"
+                    )
+
+                    if error_callback:
+                        try:
+                            error = OutOfProxiesException(
+                                "No working proxies available at cycle start"
+                            )
+                            error_callback(error)
+                            self.scheduler_logger.info(
+                                "Sent proxy error to callback"
+                            )
+                        except Exception as callback_error:
+                            self.scheduler_logger.bind(
+                                error_type=type(callback_error).__name__,
+                                error_message=str(callback_error),
+                            ).error("Failed to send proxy error to callback")
+                    elif callback:
+                        try:
+                            empty_result = ([], 0)
+                            callback(empty_result)
+                            self.scheduler_logger.info(
+                                "Sent empty results due to proxy failure"
+                            )
+                        except Exception as callback_error:
+                            self.scheduler_logger.bind(
+                                error_type=type(callback_error).__name__,
+                                error_message=str(callback_error),
+                            ).error("Failed to send empty results to callback")
+
+                    break
+
                 try:
                     result = await self.parser_service.run_full_parsing(
                         start_urls=start_urls,
@@ -188,6 +225,30 @@ class SchedulerService:
 
         if progress_callback:
             self.set_progress_callback(progress_callback)
+
+        proxies_available = (
+            await self.parser_service.check_and_refresh_proxies()
+        )
+        if not proxies_available:
+            self.scheduler_logger.error(
+                "No working proxies available for single cycle"
+            )
+
+            if error_callback:
+                try:
+                    error = OutOfProxiesException(
+                        "No working proxies available for single cycle"
+                    )
+                    error_callback(error)
+                except Exception as callback_error:
+                    self.scheduler_logger.bind(
+                        error_type=type(callback_error).__name__,
+                        error_message=str(callback_error),
+                    ).error("Failed to send proxy error to callback")
+
+            raise OutOfProxiesException(
+                "No working proxies available for single cycle"
+            )
 
         try:
             result = await self.parser_service.run_full_parsing(

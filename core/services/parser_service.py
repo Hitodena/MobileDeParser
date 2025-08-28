@@ -50,6 +50,37 @@ class ParserService:
         await self.proxy_manager.initialize()
         self.service_logger.info("Parser service initialized")
 
+    async def check_and_refresh_proxies(self) -> bool:
+        try:
+            self.service_logger.info(
+                "Checking and refreshing proxies from file"
+            )
+
+            old_proxy_count = self.proxy_manager.proxy_count
+
+            await self.proxy_manager.load_and_verify_proxies()
+
+            new_proxy_count = self.proxy_manager.proxy_count
+
+            if new_proxy_count > 0:
+                self.service_logger.bind(
+                    old_count=old_proxy_count,
+                    new_count=new_proxy_count,
+                    added_proxies=new_proxy_count - old_proxy_count,
+                ).success("Proxies refreshed successfully")
+                return True
+            else:
+                self.service_logger.bind(
+                    old_count=old_proxy_count, new_count=new_proxy_count
+                ).warning("No working proxies found after refresh")
+                return False
+
+        except Exception as e:
+            self.service_logger.bind(
+                error_type=type(e).__name__, error_message=str(e)
+            ).error("Failed to refresh proxies")
+            return False
+
     def set_progress_callback(self, callback: Callable[[int, int, int], None]):
         self.progress_callback = callback
 

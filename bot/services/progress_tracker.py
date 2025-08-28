@@ -112,7 +112,7 @@ class ProgressTracker:
         message += f"• Статус: {status_text[self.progress.status]}\n"
 
         if self.progress.total_urls > 0:
-            message += f"📈 Прогресс: {self.progress.processed_urls}/{self.progress.total_urls} "
+            message += f"• Прогресс: {self.progress.processed_urls}/{self.progress.total_urls} "
             message += f"({self.progress.progress_percentage:.1f}%)\n"
 
         if self.total_links_found > 0:
