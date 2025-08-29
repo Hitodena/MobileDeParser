@@ -128,20 +128,31 @@ class MobileDeRuParser(BaseParser):
             title_element = self.html.find("h1")
             if title_element:
                 title_text = self.extract_text_safe(title_element).strip()
-                title_words = title_text.split()
-                if len(title_words) >= 2:
-                    data["category"] = title_words[0]
-                    data["model"] = title_words[1]
 
+                cleaned_title = self._clean_title_text(title_text)
+
+                if self._extract_from_cleaned_title(cleaned_title, data):
                     self.mobilede_logger.bind(
                         category=data["category"],
                         model=data["model"],
-                        full_title=title_text,
-                    ).debug("Title fields extracted successfully")
-                else:
-                    self.mobilede_logger.warning(
-                        "Title element found but insufficient words for parsing"
+                        original_title=title_text,
+                        cleaned_title=cleaned_title,
+                    ).debug(
+                        "Title fields extracted from cleaned title successfully"
                     )
+                else:
+                    if self._extract_from_original_title(title_text, data):
+                        self.mobilede_logger.bind(
+                            category=data["category"],
+                            model=data["model"],
+                            original_title=title_text,
+                        ).debug(
+                            "Title fields extracted from original title successfully"
+                        )
+                    else:
+                        self.mobilede_logger.warning(
+                            "Failed to extract title fields from both cleaned and original title"
+                        )
             else:
                 self.mobilede_logger.warning("No title element found")
 
@@ -150,6 +161,88 @@ class MobileDeRuParser(BaseParser):
                 error_type=type(e).__name__,
                 error_message=str(e),
             ).warning("Failed to extract title fields")
+
+    def _clean_title_text(self, title_text: str) -> str:
+        if not title_text:
+            return ""
+
+        cut_symbols = [".", "*", "(", "[", "|", "/", "\\"]
+
+        cut_position = len(title_text)
+        for symbol in cut_symbols:
+            pos = title_text.find(symbol)
+            if pos != -1 and pos < cut_position:
+                cut_position = pos
+
+        dash_pos = title_text.find(" - ")
+        if dash_pos != -1 and dash_pos < cut_position:
+            cut_position = dash_pos
+
+        for i in range(len(title_text) - 1):
+            if (
+                title_text[i] == "-"
+                and title_text[i - 1] != " "
+                and title_text[i + 1] != " "
+            ):
+                continue
+            elif title_text[i] == "-" and (
+                title_text[i - 1] == " " or title_text[i + 1] == " "
+            ):
+                if i < cut_position:
+                    cut_position = i
+                break
+
+        cleaned = title_text[:cut_position].strip()
+
+        cleaned = cleaned.rstrip()
+
+        self.mobilede_logger.bind(
+            original_title=title_text,
+            cleaned_title=cleaned,
+            cut_position=cut_position,
+        ).debug("Title cleaned successfully")
+
+        return cleaned
+
+    def _extract_from_cleaned_title(
+        self, cleaned_title: str, data: Dict
+    ) -> bool:
+        if not cleaned_title:
+            return False
+
+        words = [
+            word.strip() for word in cleaned_title.split() if word.strip()
+        ]
+
+        if len(words) >= 2:
+            data["category"] = words[0]
+            data["model"] = words[1]
+            return True
+        elif len(words) == 1:
+            data["category"] = words[0]
+            data["model"] = ""
+            return True
+
+        return False
+
+    def _extract_from_original_title(
+        self, title_text: str, data: Dict
+    ) -> bool:
+        if not title_text:
+            return False
+
+        words = [word.strip() for word in title_text.split() if word.strip()]
+
+        if len(words) >= 2:
+            data["category"] = words[0]
+            data["model"] = words[1]
+            return True
+        elif len(words) == 1:
+            data["category"] = words[0]
+            data["model"] = ""
+            return True
+
+        return False
 
     def _extract_technical_fields(self, data: Dict) -> None:
         try:
@@ -187,7 +280,6 @@ class MobileDeRuParser(BaseParser):
                             if volume:
                                 data["engine_volume"] = volume
 
-            # Проверяем, были ли найдены технические поля
             tech_fields_found = any(
                 [
                     data["year_of_release"],
@@ -241,7 +333,6 @@ class MobileDeRuParser(BaseParser):
                         elif "владельцев" in label:
                             data["owner_count"] = value
 
-            # Проверяем, были ли найдены дополнительные поля
             additional_fields_found = any(
                 [
                     data["body"],

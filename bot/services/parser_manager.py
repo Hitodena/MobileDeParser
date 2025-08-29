@@ -22,6 +22,7 @@ class ParserManager:
         self.current_task: Optional[asyncio.Task] = None
         self.progress_tracker: Optional[ProgressTracker] = None
         self.notification_chat_id: Optional[int] = None
+        self.cycle_count = 0
 
         self.scheduler_config = config
 
@@ -133,6 +134,8 @@ class ParserManager:
         if self.scheduler:
             await self.scheduler.stop()
 
+        self.cycle_count = 0
+
         logger.bind(service="ParserManager").info("Parsing stopped")
         return "Парсинг остановлен"
 
@@ -153,6 +156,7 @@ class ParserManager:
         result_tuple: Tuple[List[ProductModel], int],
     ):
         products, saved_count = result_tuple
+        self.cycle_count += 1
 
         if self.progress_tracker:
             await self.progress_tracker.complete_tracking(success=True)
@@ -164,17 +168,28 @@ class ParserManager:
                 )
                 return
 
+            db_stats = self.get_database_stats()
+            total_products_in_db = (
+                db_stats.get("total_products", 0)
+                if "error" not in db_stats
+                else 0
+            )
+
+            working_proxies_count = self._get_working_proxies_count()
+
             await self.bot.send_message(
                 chat_id,
-                f"• Парсинг завершен!\n"
+                f"• Парсинг завершен: {self.cycle_count}\n"
                 f"• Найдено товаров: {len(products)}\n"
                 f"• Новых сохранено: {saved_count}\n"
-                f"• Все продукты сохранены в базу данных\n\n"
-                f"• Используйте /exportdb для создания архива всех продуктов",
+                f"• Всего товаров в БД: {total_products_in_db:,}\n"
+                f"• Рабочие прокси: {working_proxies_count[0]}/{working_proxies_count[1]}",
             )
-            logger.bind(chat_id=chat_id, products_count=len(products)).info(
-                "Parsing completed for chat"
-            )
+            logger.bind(
+                chat_id=chat_id,
+                products_count=len(products),
+                cycle_count=self.cycle_count,
+            ).info("Parsing completed for chat")
 
         except Exception as e:
             logger.bind(
@@ -234,3 +249,18 @@ class ParserManager:
         if self.scheduler and self.scheduler.parser_service:
             return self.scheduler.parser_service.export_from_database()
         return None
+
+    def _get_working_proxies_count(self) -> tuple[int, int]:
+        try:
+            if self.scheduler and self.scheduler.parser_service:
+                proxy_manager = self.scheduler.parser_service.proxy_manager
+                working_count = (
+                    len(proxy_manager.valid_proxies)
+                    if hasattr(proxy_manager, "valid_proxies")
+                    else 0
+                )
+                total_count = proxy_manager.get_total_proxies_from_file()
+                return working_count, total_count
+            return 0, 0
+        except Exception:
+            return 0, 0

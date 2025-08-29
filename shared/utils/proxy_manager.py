@@ -181,6 +181,20 @@ class ProxyManager:
     def proxy_count(self) -> int:
         return len(self.valid_proxies)
 
+    def get_total_proxies_from_file(self) -> int:
+        try:
+            if not self.proxy_file.exists():
+                return 0
+            with open(self.proxy_file, "r", encoding="utf-8") as f:
+                proxies = [
+                    line.strip()
+                    for line in f
+                    if line.strip() and not line.strip().startswith("#")
+                ]
+            return len(proxies)
+        except Exception:
+            return 0
+
     async def initialize(self) -> None:
         await self.load_and_verify_proxies()
 
