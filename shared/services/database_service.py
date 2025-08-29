@@ -99,8 +99,6 @@ class DatabaseService:
         return new_count, duplicate_count
 
     def _convert_to_db_model(self, product: ProductModel) -> ProductDB:
-        images_json = json.dumps(product.images) if product.images else ""
-
         return ProductDB(
             title=product.formatted_title,
             category=product.category,
@@ -117,7 +115,7 @@ class DatabaseService:
             owner_count=product.owner_count,
             price=product.price,
             text=product.processed_text,
-            images=images_json,
+            images=product.processed_images_string,
             url=product.url,
             dealer=product.dealer,
             sku=product.sku,
@@ -135,6 +133,28 @@ class DatabaseService:
             return [self._db_to_dict(product) for product in products]
 
     def _db_to_dict(self, db_product: ProductDB) -> Dict:
+        images_field = (
+            str(db_product.images) if db_product.images is not None else ""
+        )
+
+        if (
+            images_field
+            and isinstance(images_field, str)
+            and images_field.startswith("[")
+            and images_field.endswith("]")
+        ):
+            try:
+                images_list = json.loads(images_field)
+                if isinstance(images_list, list):
+                    clean_images = [
+                        img.strip()
+                        for img in images_list
+                        if img and img.strip()
+                    ]
+                    images_field = ",".join(clean_images)
+            except (json.JSONDecodeError, TypeError):
+                pass
+
         return {
             "Title": db_product.title,
             "Category": db_product.category,
@@ -151,7 +171,7 @@ class DatabaseService:
             "Characteristics: к-во владельцев": db_product.owner_count,
             "Price": db_product.price,
             "Text": db_product.text,
-            "Photo": db_product.images,
+            "Photo": images_field,
             "URL": db_product.url,
             "ДИЛЕР": db_product.dealer,
             "SKU": db_product.sku,

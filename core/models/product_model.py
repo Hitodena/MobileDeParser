@@ -189,6 +189,11 @@ class ProductModel(BaseModel):
         ).debug("Text processed successfully")
         return final_text
 
+    @computed_field
+    @property
+    def processed_images_string(self) -> str:
+        return ",".join(self.get_processed_images())
+
     def apply_text_replacements_to_text_field(self, text: List[str]) -> str:
         if not text:
             return ""
