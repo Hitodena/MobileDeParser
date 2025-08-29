@@ -13,16 +13,25 @@ class ProgressTracker:
         self.chat_id = chat_id
         self.progress = ParsingProgress()
         self.progress_message_id: Optional[int] = None
-        self.update_interval = 30
+        self.update_interval = 10
         self._update_task: Optional[asyncio.Task] = None
         self.total_links_found = 0
+        self.cycle_count = 0
+        self.last_message_text: Optional[str] = None
+        self._is_running = False
 
     async def start_tracking(self, total_start_urls: int):
+        if self._is_running:
+            raise RuntimeError(
+                "Парсинг уже запущен. Сначала остановите текущий парсинг командой /stop"
+            )
+
+        self._is_running = True
         self.progress = ParsingProgress()
         self.progress.start_tracking(total_start_urls)
         self.total_links_found = 0
-
-        await self._send_progress_message()
+        self.cycle_count = 0
+        self.last_message_text = None
 
         self._update_task = asyncio.create_task(self._periodic_update())
 
@@ -31,6 +40,33 @@ class ProgressTracker:
             total_start_urls=total_start_urls,
             chat_id=self.chat_id,
         ).info("Progress tracking started")
+
+    async def start_new_cycle(self, cycle_number: int):
+        self.cycle_count = cycle_number
+
+        self.progress.start_tracking(self.progress.total_urls)
+
+        self.progress_message_id = None
+        self.last_message_text = None
+
+        if self._update_task and not self._update_task.done():
+            self._update_task.cancel()
+            try:
+                await self._update_task
+            except asyncio.CancelledError:
+                pass
+
+        self._update_task = asyncio.create_task(self._periodic_update())
+
+        await self._send_progress_message()
+
+        logger.bind(
+            service="ProgressTracker",
+            cycle_number=cycle_number,
+            chat_id=self.chat_id,
+        ).info(
+            "New cycle started, progress reset and periodic update restarted"
+        )
 
     async def update_progress(
         self,
@@ -46,6 +82,12 @@ class ProgressTracker:
                 self.progress.total_urls = self.total_links_found
 
         self.progress.update_progress(processed_urls, found_products)
+
+        if (
+            self.progress.total_urls > 0
+            and self.progress.processed_urls >= self.progress.total_urls
+        ):
+            self.progress.status = "completed"
 
     async def complete_tracking(
         self, success: bool = True, error_message: Optional[str] = None
@@ -68,21 +110,55 @@ class ProgressTracker:
             error_message=error_message,
         ).info("Progress tracking completed")
 
+    async def stop_tracking(self):
+        if not self._is_running:
+            return
+
+        self._is_running = False
+
+        if self._update_task and not self._update_task.done():
+            self._update_task.cancel()
+            try:
+                await self._update_task
+            except asyncio.CancelledError:
+                pass
+
+        self.progress.status = "error"
+        self.progress.error_message = "Парсинг остановлен пользователем"
+
+        await self._send_progress_message(final=True)
+
+        logger.bind(
+            service="ProgressTracker",
+            chat_id=self.chat_id,
+        ).info("Progress tracking stopped by user")
+
+    def is_running(self) -> bool:
+        return self._is_running
+
     async def _send_progress_message(self, final: bool = False):
         message_text = self._format_progress_message(final)
 
         try:
-            if self.progress_message_id:
+            if self.progress_message_id and not final:
+                if message_text == self.last_message_text:
+                    return
+
+                # Обновляем существующее сообщение
                 await self.bot.edit_message_text(
                     chat_id=self.chat_id,
                     message_id=self.progress_message_id,
                     text=message_text,
                 )
+                self.last_message_text = message_text
             else:
+                # Отправляем новое сообщение
                 message = await self.bot.send_message(
                     chat_id=self.chat_id, text=message_text
                 )
-                self.progress_message_id = message.message_id
+                if not final:
+                    self.progress_message_id = message.message_id
+                    self.last_message_text = message_text
 
         except Exception as e:
             logger.bind(
@@ -93,14 +169,6 @@ class ProgressTracker:
             ).error("Failed to send progress message")
 
     def _format_progress_message(self, final: bool = False) -> str:
-        status_emoji = {
-            "idle": "•",
-            "running": "•",
-            "completed": "•",
-            "error": "•",
-        }
-
-        emoji = status_emoji.get(self.progress.status, "•")
         status_text = {
             "idle": "Ожидание",
             "running": "Выполняется",
@@ -108,7 +176,11 @@ class ProgressTracker:
             "error": "Ошибка",
         }
 
-        message = f"{emoji} <b>Парсинг Mobile.de</b>\n\n"
+        message = "<b>Парсинг Mobile.de</b>\n\n"
+
+        if self.cycle_count > 0:
+            message += f"• Цикл: #{self.cycle_count}\n"
+
         message += f"• Статус: {status_text[self.progress.status]}\n"
 
         if self.progress.total_urls > 0:
@@ -123,7 +195,7 @@ class ProgressTracker:
             elapsed_minutes = int(self.progress.elapsed_time // 60)
             elapsed_seconds = int(self.progress.elapsed_time % 60)
             message += (
-                f"• Время: {elapsed_minutes:02d}:{elapsed_seconds:02d}\n"
+                f"• Время цикла: {elapsed_minutes:02d}:{elapsed_seconds:02d}\n"
             )
 
         if self.progress.error_message:

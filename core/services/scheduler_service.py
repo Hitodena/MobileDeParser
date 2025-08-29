@@ -48,6 +48,7 @@ class SchedulerService:
         error_callback: Optional[Callable[[Exception], None]] = None,
         parser_class: Type[BaseParser] = MobileDeRuParser,
         progress_callback: Optional[Callable[[int, int, int], None]] = None,
+        cycle_start_callback: Optional[Callable[[int], None]] = None,
     ):
         if self.is_running:
             self.scheduler_logger.warning("Scheduler is already running")
@@ -60,11 +61,25 @@ class SchedulerService:
             self.set_progress_callback(progress_callback)
 
         try:
+            cycle_number = 0
             while self.is_running:
+                cycle_number += 1
                 cycle_start = datetime.now()
                 self.scheduler_logger.bind(
-                    cycle_start=cycle_start.isoformat()
+                    cycle_start=cycle_start.isoformat(),
+                    cycle_number=cycle_number,
                 ).info("Starting parsing cycle")
+
+                # Уведомляем о начале нового цикла
+                if cycle_start_callback:
+                    try:
+                        cycle_start_callback(cycle_number)
+                    except Exception as e:
+                        self.scheduler_logger.bind(
+                            error_type=type(e).__name__,
+                            error_message=str(e),
+                            cycle_number=cycle_number,
+                        ).error("Failed to execute cycle start callback")
 
                 proxies_available = (
                     await self.parser_service.check_and_refresh_proxies()

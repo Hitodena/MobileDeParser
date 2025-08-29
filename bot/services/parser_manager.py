@@ -35,6 +35,9 @@ class ParserManager:
         self, chat_id: int, start_urls: Optional[List[str]] = None
     ):
         try:
+            if self.progress_tracker and self.progress_tracker.is_running():
+                return "Парсинг уже запущен. Сначала остановите текущий парсинг командой /stop"
+
             if self.current_task and not self.current_task.done():
                 return "Парсинг уже запущен"
 
@@ -77,6 +80,12 @@ class ParserManager:
                         )
                     )
 
+            def cycle_start_callback(cycle_num: int):
+                if self.progress_tracker:
+                    asyncio.create_task(
+                        self.progress_tracker.start_new_cycle(cycle_num)
+                    )
+
             if self.scheduler:
                 self.current_task = asyncio.create_task(
                     self.scheduler.start_cyclic_parsing(
@@ -85,6 +94,7 @@ class ParserManager:
                         error_callback=error_callback,
                         parser_class=MobileDeRuParser,
                         progress_callback=progress_callback,
+                        cycle_start_callback=cycle_start_callback,
                     )
                 )
 
@@ -127,9 +137,7 @@ class ParserManager:
                 pass
 
         if self.progress_tracker:
-            await self.progress_tracker.complete_tracking(
-                success=False, error_message="Парсинг остановлен пользователем"
-            )
+            await self.progress_tracker.stop_tracking()
 
         if self.scheduler:
             await self.scheduler.stop()
@@ -157,9 +165,6 @@ class ParserManager:
     ):
         products, saved_count = result_tuple
         self.cycle_count += 1
-
-        if self.progress_tracker:
-            await self.progress_tracker.complete_tracking(success=True)
 
         try:
             if not products:
@@ -208,7 +213,7 @@ class ParserManager:
     ):
         if self.progress_tracker:
             await self.progress_tracker.complete_tracking(
-                success=False, error_message="Ошибка парсинга"
+                success=False, error_message=f"Ошибка парсинга: {str(error)}"
             )
 
         if isinstance(error, OutOfProxiesException):
