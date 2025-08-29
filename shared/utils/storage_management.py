@@ -13,11 +13,6 @@ from shared.services.database_service import DatabaseService
 def read_csv_file(file_path: Path, delimiter: str = ";"):
     encodings = [
         "utf-8-sig",
-        "utf-8",
-        "cp1251",
-        "latin-1",
-        "ansi",
-        "windows-1251",
     ]
     for encoding in encodings:
         try:

@@ -124,7 +124,7 @@ class ApiConfig(BaseModel):
 
 
 class DataConfig(BaseModel):
-    replacement_rules: Dict[str, str] = Field(default_factory=dict)
+    replacement_rules: Dict[str, str] = Field(default_factory=dict, min_length=1)
     dealer_exclusions: List[str] = Field(default_factory=list)
     image_exclusions: Dict[str, Dict[str, str]] = Field(default_factory=dict)
     brand_exclusions: List[str] = Field(default_factory=list)
