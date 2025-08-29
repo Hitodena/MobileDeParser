@@ -250,6 +250,21 @@ class ParserManager:
             return self.scheduler.parser_service.export_from_database()
         return None
 
+    def clear_database(self) -> bool:
+        try:
+            if self.scheduler and self.scheduler.parser_service:
+                return (
+                    self.scheduler.parser_service.database_service.clear_database()
+                )
+            return False
+        except Exception as e:
+            logger.bind(
+                service="ParserManager",
+                error_type=type(e).__name__,
+                error_message=str(e),
+            ).error("Failed to clear database")
+            return False
+
     def _get_working_proxies_count(self) -> tuple[int, int]:
         try:
             if self.scheduler and self.scheduler.parser_service:

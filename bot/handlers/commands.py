@@ -29,6 +29,9 @@ class CommandHandlers:
             self.export_db_command, Command("exportdb")
         )
         self.router.message.register(
+            self.clear_database_command, Command("cleardb")
+        )
+        self.router.message.register(
             self.handle_url_message,
             lambda message: self._is_url_message(message),
         )
@@ -69,6 +72,7 @@ class CommandHandlers:
             "• /dbstats - Статистика базы данных\n"
             "• /sqldump - Создать SQL дамп базы\n"
             "• /exportdb - Экспорт всех продуктов из БД\n"
+            "• /cleardb - Очистить базу данных\n"
             "• /help - Показать эту справку\n\n"
             "• Просто отправьте ссылку на страницу Mobile.de для парсинга\n"
             "После завершения парсинга вы получите архив с результатами."
@@ -200,6 +204,27 @@ class CommandHandlers:
         except Exception as e:
             await message.answer(f"• Ошибка: {str(e)}")
 
+    async def clear_database_command(self, message: Message):
+        try:
+            await message.answer("• Очищаю базу данных...")
+
+            success = self.parser_manager.clear_database()
+
+            if success:
+                await message.answer(
+                    "• База данных успешно очищена!\n"
+                    "• Все продукты удалены из БД\n\n"
+                    "• База данных готова к новому парсингу"
+                )
+            else:
+                await message.answer(
+                    "• Ошибка при очистке базы данных\n"
+                    "• Попробуйте еще раз или обратитесь к администратору"
+                )
+
+        except Exception as e:
+            await message.answer(f"• Ошибка: {str(e)}")
+
     async def setup_commands(self, bot):
         commands = [
             BotCommand(command="start", description="Запустить парсинг"),
@@ -209,6 +234,7 @@ class CommandHandlers:
             BotCommand(command="dbstats", description="Статистика БД"),
             BotCommand(command="sqldump", description="SQL дамп БД"),
             BotCommand(command="exportdb", description="Экспорт из БД"),
+            BotCommand(command="cleardb", description="Очистить БД"),
             BotCommand(command="help", description="Справка"),
         ]
 
