@@ -44,9 +44,10 @@ class ProgressTracker:
     async def start_new_cycle(self, cycle_number: int):
         self.cycle_count = cycle_number
 
-        self.progress.start_tracking(self.progress.total_urls)
+        self.progress.start_tracking(1)
 
-        self.progress_message_id = None
+        self.total_links_found = 0
+
         self.last_message_text = None
 
         if self._update_task and not self._update_task.done():
@@ -75,19 +76,13 @@ class ProgressTracker:
         total_links_found: Optional[int] = None,
     ):
         if total_links_found is not None:
-            self.total_links_found = max(
-                self.total_links_found, total_links_found
-            )
-            if self.total_links_found > self.progress.total_urls:
-                self.progress.total_urls = self.total_links_found
+            self.total_links_found = total_links_found
+            if total_links_found > 0:
+                self.progress.total_urls = total_links_found
+                if processed_urls is None:
+                    processed_urls = total_links_found
 
         self.progress.update_progress(processed_urls, found_products)
-
-        if (
-            self.progress.total_urls > 0
-            and self.progress.processed_urls >= self.progress.total_urls
-        ):
-            self.progress.status = "completed"
 
     async def complete_tracking(
         self, success: bool = True, error_message: Optional[str] = None
@@ -140,19 +135,20 @@ class ProgressTracker:
         message_text = self._format_progress_message(final)
 
         try:
-            if self.progress_message_id and not final:
-                if message_text == self.last_message_text:
+            if self.progress_message_id:
+                if not final and message_text == self.last_message_text:
                     return
 
-                # Обновляем существующее сообщение
                 await self.bot.edit_message_text(
                     chat_id=self.chat_id,
                     message_id=self.progress_message_id,
                     text=message_text,
                 )
                 self.last_message_text = message_text
+
+                if final:
+                    self.progress_message_id = None
             else:
-                # Отправляем новое сообщение
                 message = await self.bot.send_message(
                     chat_id=self.chat_id, text=message_text
                 )

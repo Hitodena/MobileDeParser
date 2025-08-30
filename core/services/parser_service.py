@@ -98,6 +98,21 @@ class ParserService:
             except Exception as e:
                 self.service_logger.error(f"Progress callback error: {e}")
 
+    def _update_search_progress(
+        self, processed_start_urls: int, total_start_urls: int
+    ):
+        self._update_progress(processed_start_urls, 0, total_start_urls)
+
+    def _update_parsing_progress(
+        self,
+        processed_products: int,
+        found_products: int,
+        total_links_to_parse: int,
+    ):
+        self._update_progress(
+            processed_products, found_products, total_links_to_parse
+        )
+
     async def parse_links_from_url(
         self, url: str, parser_class: Type[BaseParser]
     ) -> List[str]:
@@ -155,13 +170,78 @@ class ParserService:
 
         unique_links = list(set(all_links))
 
+        filtered_links = await self._filter_links_by_existing_skus(
+            unique_links
+        )
+
         self.service_logger.bind(
             total_links=len(all_links),
             unique_links=len(unique_links),
+            filtered_links=len(filtered_links),
             batch_size=len(urls),
-        ).success("Batch link parsing completed")
+        ).success("Batch link parsing completed with SKU filtering")
 
-        return unique_links
+        return filtered_links
+
+    async def _filter_links_by_existing_skus(
+        self, links: List[str]
+    ) -> List[str]:
+        try:
+            existing_skus = self.database_service.get_all_existing_skus()
+            existing_count = len(existing_skus)
+
+            self.service_logger.bind(
+                total_links=len(links), existing_skus_count=existing_count
+            ).info("Starting SKU-based link filtering")
+
+            filtered_links = []
+            skipped_count = 0
+
+            for link in links:
+                sku = link.split("/")[-1].split(".")[0]
+
+                if not sku:
+                    self.service_logger.bind(url=link).warning(
+                        "Link skipped - no SKU extracted"
+                    )
+                    skipped_count += 1
+                    continue
+
+                if sku in existing_skus:
+                    self.service_logger.bind(url=link, sku=sku).debug(
+                        "Link skipped - SKU already exists in database"
+                    )
+                    skipped_count += 1
+                    continue
+
+                filtered_links.append(link)
+
+            self.service_logger.bind(
+                total_links=len(links),
+                filtered_links=len(filtered_links),
+                skipped_links=skipped_count,
+                existing_skus_count=existing_count,
+            ).info("SKU-based link filtering completed")
+
+            if len(filtered_links) == 0 and len(links) > 0:
+                self.service_logger.warning(
+                    "All links were filtered out - no new products to parse"
+                )
+            elif len(filtered_links) < len(links):
+                self.service_logger.info(
+                    f"Filtered out {len(links) - len(filtered_links)} existing products"
+                )
+
+            return filtered_links
+
+        except Exception as e:
+            self.service_logger.bind(
+                error_type=type(e).__name__,
+                error_message=str(e),
+            ).error(
+                "Failed to filter links by existing SKUs, returning all links"
+            )
+            return links
 
     async def parse_product_card(
         self,
@@ -205,6 +285,10 @@ class ParserService:
         urls: List[str],
         parser_class: Type[BaseParser],
     ) -> List[ProductModel]:
+        if not urls:
+            self.service_logger.info("No URLs provided for product parsing")
+            return []
+
         self.service_logger.bind(
             total_urls=len(urls),
             batch_size=self.config_obj.parser.max_concurrency,
@@ -241,7 +325,9 @@ class ParserService:
                 elif isinstance(result, ProductModel):
                     all_products.append(result)
 
-            self._update_progress(processed_urls, len(all_products))
+            self._update_parsing_progress(
+                processed_urls, len(all_products), len(urls)
+            )
 
         self.service_logger.bind(
             total_products=len(all_products), total_urls=len(urls)
@@ -284,10 +370,6 @@ class ParserService:
                     all_links.extend(batch_links)
                     processed_start_urls += len(batch_urls)
 
-                    self._update_progress(
-                        processed_start_urls, 0, len(all_links)
-                    )
-
                 except OutOfProxiesException as e:
                     error_msg = f"No working proxies available: {str(e)}"
                     parsing_errors.append(error_msg)
@@ -323,6 +405,12 @@ class ParserService:
             parsing_errors=len(parsing_errors),
         ).info("Link parsing phase completed")
 
+        self._update_progress(
+            processed_urls=0,
+            found_products=0,
+            total_links_found=len(unique_links),
+        )
+
         products = []
         if unique_links:
             try:
@@ -344,6 +432,15 @@ class ParserService:
                     error_type=type(e).__name__,
                     error_message=str(e),
                 ).error("Product parsing failed")
+        else:
+            self._update_progress(
+                processed_urls=0,
+                found_products=0,
+                total_links_found=0,
+            )
+            self.service_logger.info(
+                "No new links to parse - all products already exist in database"
+            )
 
         self.service_logger.bind(
             total_products=len(products),

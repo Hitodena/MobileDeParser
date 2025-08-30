@@ -45,6 +45,19 @@ class DatabaseService:
             )
             return product is not None
 
+    def get_all_existing_skus(self) -> set[str]:
+        try:
+            with self.get_session() as session:
+                skus = session.query(ProductDB.sku).all()
+                return {sku[0] for sku in skus}
+        except Exception as e:
+            logger.bind(
+                service="DatabaseService",
+                error_type=type(e).__name__,
+                error_message=str(e),
+            ).error("Failed to get existing SKUs")
+            return set()
+
     def save_product(self, product: ProductModel) -> bool:
         try:
             if self.product_exists(product.sku):

@@ -171,6 +171,14 @@ class ParserManager:
                 await self.bot.send_message(
                     chat_id, "• Парсинг завершен, но результаты не найдены"
                 )
+
+                if self.progress_tracker:
+                    await self.progress_tracker.update_progress(
+                        processed_urls=self.progress_tracker.total_links_found,
+                        found_products=0,
+                        total_links_found=self.progress_tracker.total_links_found,
+                    )
+                    await self.progress_tracker.complete_tracking(success=True)
                 return
 
             db_stats = self.get_database_stats()
@@ -195,6 +203,14 @@ class ParserManager:
                 products_count=len(products),
                 cycle_count=self.cycle_count,
             ).info("Parsing completed for chat")
+
+            if self.progress_tracker:
+                await self.progress_tracker.update_progress(
+                    processed_urls=self.progress_tracker.total_links_found,
+                    found_products=len(products),
+                    total_links_found=self.progress_tracker.total_links_found,
+                )
+                await self.progress_tracker.complete_tracking(success=True)
 
         except Exception as e:
             logger.bind(

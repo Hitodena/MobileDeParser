@@ -70,7 +70,6 @@ class SchedulerService:
                     cycle_number=cycle_number,
                 ).info("Starting parsing cycle")
 
-                # Уведомляем о начале нового цикла
                 if cycle_start_callback:
                     try:
                         cycle_start_callback(cycle_number)
