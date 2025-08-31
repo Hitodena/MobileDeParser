@@ -1,6 +1,5 @@
 import json
 from datetime import datetime
-from pathlib import Path
 from typing import Dict, List
 
 from loguru import logger
@@ -16,21 +15,21 @@ class DatabaseService:
     _instance = None
     _initialized = False
 
-    def __new__(cls, db_path: Path | None = None):
+    def __new__(cls, db_path: str | None = None):
         if cls._instance is None:
             cls._instance = super(DatabaseService, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self, db_path: Path | None = None):
+    def __init__(self, db_path: str | None = None):
         if not self._initialized and db_path is not None:
             self.db_path = db_path
-            self.engine = create_engine(f"sqlite:///{db_path}", echo=False)
+            self.engine = create_engine(db_path, echo=False)
             self.SessionLocal = sessionmaker(
                 autocommit=False, autoflush=False, bind=self.engine
             )
 
             Base.metadata.create_all(bind=self.engine)
-            logger.bind(service="DatabaseService", db_path=str(db_path)).info(
+            logger.bind(service="DatabaseService", db_path=db_path).info(
                 "Database initialized"
             )
             self._initialized = True

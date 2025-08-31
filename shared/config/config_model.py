@@ -74,7 +74,7 @@ class FilesConfig(BaseModel):
     )
     replaces_file: Path = Field(default=Path("var/www/mobile/replaces.csv"))
     files_dir: Path = Field(default=Path("var/www/mobile/files"))
-    db_path: Path = Field(default=Path("var/www/mobile/files/products.db"))
+    db_path: str = Field(default="sqlite:///var/www/mobile/files/products.db")
 
     @field_validator("files_dir", mode="after")
     @classmethod
@@ -124,7 +124,9 @@ class ApiConfig(BaseModel):
 
 
 class DataConfig(BaseModel):
-    replacement_rules: Dict[str, str] = Field(default_factory=dict, min_length=1)
+    replacement_rules: Dict[str, str] = Field(
+        default_factory=dict, min_length=1
+    )
     dealer_exclusions: List[str] = Field(default_factory=list)
     image_exclusions: Dict[str, Dict[str, str]] = Field(default_factory=dict)
     brand_exclusions: List[str] = Field(default_factory=list)
