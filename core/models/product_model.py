@@ -47,6 +47,11 @@ class ProductModel(BaseModel):
 
     @computed_field
     @property
+    def processed_door_count(self) -> str:
+        return self.apply_text_replacements_to_string(self.door_count)
+
+    @computed_field
+    @property
     def processed_transmission(self) -> str:
         return self.apply_text_replacements_to_string(self.transmission)
 

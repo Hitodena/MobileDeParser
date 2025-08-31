@@ -174,6 +174,10 @@ class MobileDeRuParser(BaseParser):
             if pos != -1 and pos < cut_position:
                 cut_position = pos
 
+        plus_pos = title_text.find("+")
+        if plus_pos != -1 and plus_pos < cut_position:
+            cut_position = plus_pos
+
         dash_pos = title_text.find(" - ")
         if dash_pos != -1 and dash_pos < cut_position:
             cut_position = dash_pos
@@ -363,12 +367,27 @@ class MobileDeRuParser(BaseParser):
                 price_text = self.extract_text_safe(price_element)
                 price = self.parse_only_numbers(price_text)
                 if price:
-                    data["price"] = price
+                    try:
+                        price_euro = int(price)
+                        price_rub = int(
+                            price_euro * config.calculation.currency_exchange
+                        )
+                        data["price"] = str(price_rub)
 
-                    self.mobilede_logger.bind(
-                        extracted_price=price,
-                        original_text=price_text,
-                    ).debug("Price extracted successfully")
+                        self.mobilede_logger.bind(
+                            extracted_price_euro=price_euro,
+                            converted_price_rub=price_rub,
+                            exchange_rate=config.calculation.currency_exchange,
+                            original_text=price_text,
+                        ).debug("Price extracted and converted successfully")
+                    except (ValueError, AttributeError) as e:
+
+                        data["price"] = price
+                        self.mobilede_logger.bind(
+                            extracted_price=price,
+                            original_text=price_text,
+                            conversion_error=str(e),
+                        ).warning("Price extracted but conversion failed")
                 else:
                     self.mobilede_logger.warning(
                         "Price element found but could not parse price"

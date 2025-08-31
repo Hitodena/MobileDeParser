@@ -69,7 +69,7 @@ class ConfigLoader:
             for row in rows:
                 original = row.get("НАЗВАНИЕ", "")
                 replacement = row.get("ЗАМЕНА", "")
-                if original and replacement:
+                if original:
                     replacements[original] = replacement
                     loaded_count += 1
             logger.bind(

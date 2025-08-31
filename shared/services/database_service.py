@@ -122,7 +122,7 @@ class DatabaseService:
             engine_volume=product.engine_volume,
             body=product.processed_body,
             color=product.processed_color,
-            door_count=product.door_count,
+            door_count=product.processed_door_count,
             seat_count=product.seat_count,
             owner_count=product.owner_count,
             price=product.price,
