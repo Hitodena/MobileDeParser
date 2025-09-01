@@ -1,0 +1,8 @@
+[Unit]
+Description=Watch configuration.yaml for changes MobileDe Parser
+
+[Path]
+PathModified=/var/www/mobile/configuration.yaml
+
+[Install]
+WantedBy=multi-user.target

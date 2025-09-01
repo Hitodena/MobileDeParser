@@ -1,0 +1,6 @@
+[Unit]
+Description=Restart MobileDeBotParser on config change
+
+[Service]
+Type=oneshot
+ExecStart=/var/www/mobile/scripts/mobilede_docker_restart.sh

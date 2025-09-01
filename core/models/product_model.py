@@ -407,7 +407,7 @@ class ProductModel(BaseModel):
 
             if (
                 not processed_images
-                and self.config.parser.exclude_ads_pictures != "-1"
+                and self.config.parser.exclude_ads_pictures != -1
             ):
                 raise ModelExclusionError("No minimal images requirements")
 
