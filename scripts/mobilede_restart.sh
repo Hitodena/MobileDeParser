@@ -30,12 +30,12 @@ sudo systemctl status mobilede_configwatch.path --no-pager -l
 
 echo
 echo "=== Статус Docker контейнера ==="
-if docker ps | grep -q mobilede; then
+if sudo docker ps | grep -q mobilede; then
     echo "✓ Контейнер mobilede запущен"
-    docker ps | grep mobilede
+    sudo docker ps | grep mobilede
     echo
     echo "Последние строки логов:"
-    docker logs mobilede --tail 5
+    sudo docker logs mobilede --tail 5
 else
     echo "✗ Контейнер mobilede не запущен"
 

@@ -43,7 +43,7 @@ if command -v docker &> /dev/null; then
     echo "   ✓ Docker установлен ($(docker --version))"
 
     # Проверка работы Docker
-    if docker ps &> /dev/null; then
+    if sudo docker ps &> /dev/null; then
         echo "   ✓ Docker daemon запущен"
     else
         echo "   ✗ Docker daemon не запущен"
@@ -68,7 +68,7 @@ fi
 
 # Проверка systemd
 echo "6. Проверка systemd..."
-if systemctl --version &> /dev/null; then
+if sudo systemctl --version &> /dev/null; then
     echo "   ✓ systemd доступен"
 else
     echo "   ✗ systemd не найден"
@@ -89,10 +89,10 @@ fi
 
 # Проверка существующих служб
 echo "8. Проверка существующих служб..."
-if systemctl list-unit-files | grep -q "mobilede_"; then
+if sudo systemctl list-unit-files | grep -q "mobilede_"; then
     echo "   ⚠ Обнаружены существующие службы MobileDe"
     echo "   Существующие службы:"
-    systemctl list-unit-files | grep "mobilede_" | while read line; do
+    sudo systemctl list-unit-files | grep "mobilede_" | while read line; do
         echo "     - $line"
     done
     echo "   Для переустановки используйте: sudo ./mobilede_setup.sh uninstall"
@@ -102,9 +102,9 @@ fi
 
 # Проверка Docker контейнеров
 echo "9. Проверка Docker контейнеров..."
-if docker ps -a | grep -q "mobilede"; then
+if sudo docker ps -a | grep -q "mobilede"; then
     echo "   ⚠ Обнаружен существующий контейнер mobilede"
-    docker ps -a | grep mobilede | while read line; do
+    sudo docker ps -a | grep mobilede | while read line; do
         echo "     $line"
     done
     echo "   Контейнер будет пересоздан при запуске"

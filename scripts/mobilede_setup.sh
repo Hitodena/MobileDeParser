@@ -47,20 +47,20 @@ install_services() {
     fi
 
     # Делаем Docker скрипты исполняемыми
-    chmod +x "$SCRIPT_DIR"/mobilede_docker_*.sh
+    sudo chmod +x "$SCRIPT_DIR"/mobilede_docker_*.sh
 
     # Копируем файлы служб
-    cp "$SCRIPT_DIR/$BOT_SERVICE" "$SYSTEMD_DIR/"
-    cp "$SCRIPT_DIR/$CONFIGWATCH_SERVICE" "$SYSTEMD_DIR/"
-    cp "$SCRIPT_DIR/$CONFIGWATCH_PATH" "$SYSTEMD_DIR/"
+    sudo cp "$SCRIPT_DIR/$BOT_SERVICE" "$SYSTEMD_DIR/"
+    sudo cp "$SCRIPT_DIR/$CONFIGWATCH_SERVICE" "$SYSTEMD_DIR/"
+    sudo cp "$SCRIPT_DIR/$CONFIGWATCH_PATH" "$SYSTEMD_DIR/"
 
     # Перезагружаем systemd
-    systemctl daemon-reload
+    sudo systemctl daemon-reload
 
     # Включаем службы
-    systemctl enable "$BOT_SERVICE"
-    systemctl enable "$CONFIGWATCH_SERVICE"
-    systemctl enable "$CONFIGWATCH_PATH"
+    sudo systemctl enable "$BOT_SERVICE"
+    sudo systemctl enable "$CONFIGWATCH_SERVICE"
+    sudo systemctl enable "$CONFIGWATCH_PATH"
 
     echo "Службы установлены и включены в автозагрузку"
     echo "Для запуска используйте: $0 start"
@@ -71,24 +71,24 @@ start_services() {
     echo "Запуск служб MobileDe Parser..."
 
     # Сначала делаем Docker скрипты исполняемыми
-    chmod +x /var/www/mobile/parser/scripts/mobilede_docker_*.sh
+    sudo chmod +x /var/www/mobile/parser/scripts/mobilede_docker_*.sh
 
-    systemctl start "$BOT_SERVICE"
-    systemctl start "$CONFIGWATCH_PATH"
+    sudo systemctl start "$BOT_SERVICE"
+    sudo systemctl start "$CONFIGWATCH_PATH"
 
     echo "Службы запущены"
     echo "Проверка статуса Docker контейнера..."
     sleep 3
-    docker ps | grep mobilede || echo "⚠ Контейнер не найден"
+    sudo docker ps | grep mobilede || echo "⚠ Контейнер не найден"
 }
 
 # Функция остановки служб
 stop_services() {
     echo "Остановка служб MobileDe Parser..."
 
-    systemctl stop "$BOT_SERVICE"
-    systemctl stop "$CONFIGWATCH_SERVICE"
-    systemctl stop "$CONFIGWATCH_PATH"
+    sudo systemctl stop "$BOT_SERVICE"
+    sudo systemctl stop "$CONFIGWATCH_SERVICE"
+    sudo systemctl stop "$CONFIGWATCH_PATH"
 
     echo "Службы остановлены"
 }
@@ -97,8 +97,8 @@ stop_services() {
 restart_services() {
     echo "Перезапуск служб MobileDe Parser..."
 
-    systemctl restart "$BOT_SERVICE"
-    systemctl restart "$CONFIGWATCH_PATH"
+    sudo systemctl restart "$BOT_SERVICE"
+    sudo systemctl restart "$CONFIGWATCH_PATH"
 
     echo "Службы перезапущены"
 }
@@ -109,34 +109,34 @@ show_status() {
     echo
 
     echo "=== Основная служба бота ==="
-    systemctl status "$BOT_SERVICE" --no-pager -l
+    sudo systemctl status "$BOT_SERVICE" --no-pager -l
     echo
 
     echo "=== Мониторинг конфигурации ==="
-    systemctl status "$CONFIGWATCH_PATH" --no-pager -l
+    sudo systemctl status "$CONFIGWATCH_PATH" --no-pager -l
     echo
 
     echo "=== Docker контейнер ==="
-    if docker ps | grep -q mobilede; then
+    if sudo docker ps | grep -q mobilede; then
         echo "✓ Контейнер mobilede запущен"
-        docker ps | grep mobilede
+        sudo docker ps | grep mobilede
         echo
         echo "Последние 10 строк логов контейнера:"
-        docker logs mobilede --tail 10
+        sudo docker logs mobilede --tail 10
     else
         echo "✗ Контейнер mobilede не запущен"
 
         # Проверяем остановленные контейнеры
-        if docker ps -a | grep -q mobilede; then
+        if sudo docker ps -a | grep -q mobilede; then
             echo "Найден остановленный контейнер:"
-            docker ps -a | grep mobilede
+            sudo docker ps -a | grep mobilede
         fi
     fi
     echo
 
     echo "=== Журналы служб ==="
     echo "Последние 10 строк журнала службы:"
-    journalctl -u "$BOT_SERVICE" --no-pager -n 10
+    sudo journalctl -u "$BOT_SERVICE" --no-pager -n 10
 }
 
 # Функция удаления служб
@@ -144,30 +144,30 @@ uninstall_services() {
     echo "Удаление служб MobileDe Parser..."
 
     # Останавливаем службы
-    systemctl stop "$BOT_SERVICE" 2>/dev/null
-    systemctl stop "$CONFIGWATCH_SERVICE" 2>/dev/null
-    systemctl stop "$CONFIGWATCH_PATH" 2>/dev/null
+    sudo systemctl stop "$BOT_SERVICE" 2>/dev/null
+    sudo systemctl stop "$CONFIGWATCH_SERVICE" 2>/dev/null
+    sudo systemctl stop "$CONFIGWATCH_PATH" 2>/dev/null
 
     # Останавливаем и удаляем Docker контейнер
     echo "Остановка Docker контейнера..."
-    if docker ps -a | grep -q mobilede; then
-        docker stop mobilede 2>/dev/null
-        docker rm mobilede 2>/dev/null
+    if sudo docker ps -a | grep -q mobilede; then
+        sudo docker stop mobilede 2>/dev/null
+        sudo docker rm mobilede 2>/dev/null
         echo "Docker контейнер удален"
     fi
 
     # Отключаем службы
-    systemctl disable "$BOT_SERVICE" 2>/dev/null
-    systemctl disable "$CONFIGWATCH_SERVICE" 2>/dev/null
-    systemctl disable "$CONFIGWATCH_PATH" 2>/dev/null
+    sudo systemctl disable "$BOT_SERVICE" 2>/dev/null
+    sudo systemctl disable "$CONFIGWATCH_SERVICE" 2>/dev/null
+    sudo systemctl disable "$CONFIGWATCH_PATH" 2>/dev/null
 
     # Удаляем файлы
-    rm -f "$SYSTEMD_DIR/$BOT_SERVICE"
-    rm -f "$SYSTEMD_DIR/$CONFIGWATCH_SERVICE"
-    rm -f "$SYSTEMD_DIR/$CONFIGWATCH_PATH"
+    sudo rm -f "$SYSTEMD_DIR/$BOT_SERVICE"
+    sudo rm -f "$SYSTEMD_DIR/$CONFIGWATCH_SERVICE"
+    sudo rm -f "$SYSTEMD_DIR/$CONFIGWATCH_PATH"
 
     # Перезагружаем systemd
-    systemctl daemon-reload
+    sudo systemctl daemon-reload
 
     echo "Службы удалены"
 }

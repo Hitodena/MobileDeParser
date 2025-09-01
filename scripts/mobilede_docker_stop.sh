@@ -8,18 +8,18 @@ CONTAINER_NAME="mobilede"
 echo "=== Остановка MobileDe Parser Docker контейнера ==="
 
 # Проверяем, существует ли контейнер
-if docker ps -a | grep -q "$CONTAINER_NAME"; then
+if sudo docker ps -a | grep -q "$CONTAINER_NAME"; then
     echo "Остановка контейнера $CONTAINER_NAME..."
 
     # Мягкая остановка
-    docker stop "$CONTAINER_NAME"
+    sudo docker stop "$CONTAINER_NAME"
 
     if [ $? -eq 0 ]; then
         echo "✓ Контейнер $CONTAINER_NAME остановлен"
 
         # Удаляем контейнер
         echo "Удаление контейнера..."
-        docker rm "$CONTAINER_NAME"
+        sudo docker rm "$CONTAINER_NAME"
 
         if [ $? -eq 0 ]; then
             echo "✓ Контейнер $CONTAINER_NAME удален"
@@ -31,8 +31,8 @@ if docker ps -a | grep -q "$CONTAINER_NAME"; then
 
         # Принудительная остановка
         echo "Попытка принудительной остановки..."
-        docker kill "$CONTAINER_NAME" 2>/dev/null
-        docker rm "$CONTAINER_NAME" 2>/dev/null
+        sudo docker kill "$CONTAINER_NAME" 2>/dev/null
+        sudo docker rm "$CONTAINER_NAME" 2>/dev/null
     fi
 else
     echo "⚠ Контейнер $CONTAINER_NAME не найден"

@@ -15,16 +15,16 @@ cd "$SCRIPTS_DIR"
 
 # Остановка и удаление существующего контейнера
 echo "Проверка существующего контейнера..."
-if docker ps -a | grep -q "$CONTAINER_NAME"; then
+if sudo docker ps -a | grep -q "$CONTAINER_NAME"; then
     echo "Остановка существующего контейнера..."
-    docker stop "$CONTAINER_NAME" 2>/dev/null
+    sudo docker stop "$CONTAINER_NAME" 2>/dev/null
     echo "Удаление существующего контейнера..."
-    docker rm "$CONTAINER_NAME" 2>/dev/null
+    sudo docker rm "$CONTAINER_NAME" 2>/dev/null
 fi
 
 # Сборка образа
 echo "Сборка Docker образа..."
-docker build -t "$IMAGE_NAME" -f "$PROJECT_DIR/docker/Dockerfile" "$PROJECT_DIR"
+sudo docker build -t "$IMAGE_NAME" -f "$PROJECT_DIR/docker/Dockerfile" "$PROJECT_DIR"
 
 if [ $? -ne 0 ]; then
     echo "Ошибка при сборке Docker образа"
@@ -33,7 +33,7 @@ fi
 
 # Запуск контейнера
 echo "Запуск нового контейнера..."
-docker run -d --name "$CONTAINER_NAME" \
+sudo docker run -d --name "$CONTAINER_NAME" \
   --restart=unless-stopped \
   -v /var/www/mobile:/app/var/www/mobile \
   -v "$PROJECT_DIR/logs":/app/logs \
@@ -46,13 +46,13 @@ if [ $? -eq 0 ]; then
 
     # Ждем немного и проверяем статус
     sleep 5
-    if docker ps | grep -q "$CONTAINER_NAME"; then
+    if sudo docker ps | grep -q "$CONTAINER_NAME"; then
         echo "✓ Контейнер работает корректно"
-        docker ps | grep "$CONTAINER_NAME"
+        sudo docker ps | grep "$CONTAINER_NAME"
     else
         echo "✗ Контейнер остановился после запуска"
         echo "Логи контейнера:"
-        docker logs "$CONTAINER_NAME"
+        sudo docker logs "$CONTAINER_NAME"
         exit 1
     fi
 else
