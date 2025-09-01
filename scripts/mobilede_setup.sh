@@ -71,7 +71,7 @@ start_services() {
     echo "Запуск служб MobileDe Parser..."
 
     # Сначала делаем Docker скрипты исполняемыми
-    chmod +x /var/www/mobile/scripts/mobilede_docker_*.sh
+    chmod +x /var/www/mobile/parser/scripts/mobilede_docker_*.sh
 
     systemctl start "$BOT_SERVICE"
     systemctl start "$CONFIGWATCH_PATH"

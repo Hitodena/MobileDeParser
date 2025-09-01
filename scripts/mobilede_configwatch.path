@@ -2,7 +2,7 @@
 Description=Watch configuration.yaml for changes MobileDe Parser
 
 [Path]
-PathModified=/var/www/mobile/configuration.yaml
+PathModified=/var/www/mobile/parser/configuration.yaml
 
 [Install]
 WantedBy=multi-user.target

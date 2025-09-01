@@ -6,11 +6,11 @@ Requires=docker.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-WorkingDirectory=/var/www/mobile/scripts
+WorkingDirectory=/var/www/mobile/parser/scripts
 User=root
 
-ExecStart=/var/www/mobile/scripts/mobilede_docker_start.sh
-ExecStop=/var/www/mobile/scripts/mobilede_docker_stop.sh
+ExecStart=/var/www/mobile/parser/scripts/mobilede_docker_start.sh
+ExecStop=/var/www/mobile/parser/scripts/mobilede_docker_stop.sh
 
 TimeoutStartSec=300
 TimeoutStopSec=30

@@ -10,14 +10,14 @@ echo "$(date): Обнаружено изменение configuration.yaml"
 
 # Остановка контейнера
 echo "Остановка контейнера..."
-/var/www/mobile/scripts/mobilede_docker_stop.sh
+/var/www/mobile/parser/scripts/mobilede_docker_stop.sh
 
 # Небольшая пауза
 sleep 2
 
 # Запуск контейнера
 echo "Запуск контейнера..."
-/var/www/mobile/scripts/mobilede_docker_start.sh
+/var/www/mobile/parser/scripts/mobilede_docker_start.sh
 
 if [ $? -eq 0 ]; then
     echo "$(date): ✓ Перезапуск завершен успешно"

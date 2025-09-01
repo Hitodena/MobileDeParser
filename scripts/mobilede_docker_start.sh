@@ -3,7 +3,7 @@
 # Скрипт для запуска MobileDe Parser в Docker контейнере
 # Используется службой mobilede_bot.service
 
-PROJECT_DIR="/var/www/mobile"
+PROJECT_DIR="/var/www/mobile/parser"
 SCRIPTS_DIR="$PROJECT_DIR/scripts"
 CONTAINER_NAME="mobilede"
 IMAGE_NAME="mobilede-parser:latest"

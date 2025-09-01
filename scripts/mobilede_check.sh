@@ -2,7 +2,7 @@
 
 # Скрипт для проверки готовности системы к установке служб MobileDe Parser
 
-PROJECT_DIR="/var/www/mobile"
+PROJECT_DIR="/var/www/mobile/parser"
 CONFIG_FILE="$PROJECT_DIR/configuration.yaml"
 MAIN_FILE="$PROJECT_DIR/main.py"
 
