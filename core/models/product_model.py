@@ -340,32 +340,76 @@ class ProductModel(BaseModel):
             return images
         result = images.copy()
         original_count = len(result)
-        start_remove = rules.get("start", "1")
-        if start_remove.isdigit():
-            start_count = int(start_remove)
-            if start_count > 0 and len(result) > start_count:
-                result = result[start_count:]
-                logger.bind(
-                    removed_count=start_count,
-                    remaining_count=len(result),
-                ).debug("Removed images from start")
-        penultimate = rules.get("penultimate", "*")
-        if penultimate != "*" and len(result) >= 2:
-            removed_image = result.pop(-2)
-            logger.bind(
-                removed_image_url=removed_image[:50] + "...",
-                remaining_count=len(result),
-            ).debug("Removed penultimate image")
-        last = rules.get("last", "*")
-        if last != "*" and len(result) >= 1:
+        removed_images = []
+
+        # Поддерживаем как русские, так и английские ключи
+        start_remove = rules.get("НАЧАЛО") or rules.get("start", "")
+        penultimate = rules.get("ПРЕДПОСЛЕДНЯЯ") or rules.get(
+            "penultimate", ""
+        )
+        last = rules.get("ПОСЛЕДНЯЯ") or rules.get("last", "")
+
+        # Сначала удаляем с конца (чтобы не сбить индексы)
+
+        # Удаляем последнюю фотку если указана звездочка
+        if last == "*" and len(result) >= 1:
             removed_image = result.pop(-1)
+            removed_images.append(f"последняя ({len(result)})")
             logger.bind(
                 removed_image_url=removed_image[:50] + "...",
                 remaining_count=len(result),
             ).debug("Removed last image")
+
+        # Удаляем предпоследнюю фотку если указана звездочка
+        if penultimate == "*" and len(result) >= 2:
+            removed_image = result.pop(-2)
+            removed_images.append(f"предпоследняя ({len(result)})")
+            logger.bind(
+                removed_image_url=removed_image[:50] + "...",
+                remaining_count=len(result),
+            ).debug("Removed penultimate image")
+
+        # Удаляем фотки по позициям из начала
+        if start_remove and start_remove.strip():
+            # Поддержка нескольких позиций через запятую (например: "1,5,8")
+            positions_to_remove = []
+            try:
+                # Разбиваем по запятой и преобразуем в числа
+                for pos_str in start_remove.split(","):
+                    pos_str = pos_str.strip()
+                    if pos_str.isdigit():
+                        pos = int(pos_str)
+                        if pos > 0:  # Позиции в CSV начинаются с 1
+                            index = (
+                                pos - 1
+                            )  # Преобразуем в индекс массива (начинается с 0)
+                            if index < len(result):
+                                positions_to_remove.append(index)
+
+                # Сортируем позиции по убыванию, чтобы удалять с конца
+                positions_to_remove.sort(reverse=True)
+
+                for index in positions_to_remove:
+                    if index < len(result):
+                        removed_image = result.pop(index)
+                        removed_images.append(f"позиция {index + 1}")
+                        logger.bind(
+                            removed_position=index + 1,
+                            removed_image_url=removed_image[:50] + "...",
+                            remaining_count=len(result),
+                        ).debug("Removed image at specific position")
+
+            except (ValueError, IndexError) as e:
+                logger.bind(
+                    error=str(e),
+                    start_remove_value=start_remove,
+                ).warning("Failed to parse start positions for image removal")
+
         logger.bind(
+            dealer=self.dealer,
             original_count=original_count,
             final_count=len(result),
+            removed_images=removed_images,
             rules_applied=rules,
         ).debug("Image exclusions applied successfully")
         return result
