@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
 from core.models.product_model import ProductModel
+from shared.config.config_model import ConfigModel
 from shared.models.database_model import Base, ProductDB
 
 
@@ -15,21 +16,22 @@ class DatabaseService:
     _instance = None
     _initialized = False
 
-    def __new__(cls, db_path: str | None = None):
+    def __new__(cls, config_obj: ConfigModel | None = None):
         if cls._instance is None:
             cls._instance = super(DatabaseService, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self, db_path: str | None = None):
-        if not self._initialized and db_path is not None:
-            self.db_path = db_path
-            self.engine = create_engine(db_path, echo=False)
+    def __init__(self, config_obj: ConfigModel | None = None):
+        if not self._initialized and config_obj is not None:
+            self.db_path = config_obj.files.db_path
+            self.config_obj = config_obj
+            self.engine = create_engine(self.db_path, echo=False)
             self.SessionLocal = sessionmaker(
                 autocommit=False, autoflush=False, bind=self.engine
             )
 
             Base.metadata.create_all(bind=self.engine)
-            logger.bind(service="DatabaseService", db_path=db_path).info(
+            logger.bind(service="DatabaseService", db_path=self.db_path).info(
                 "Database initialized"
             )
             self._initialized = True
@@ -168,31 +170,31 @@ class DatabaseService:
                 pass
 
         return {
-            "Title": db_product.title,
-            "Category": db_product.category,
-            "Characteristics: модель": db_product.model,
-            "Characteristics: год выпуска": db_product.year_of_release,
-            "Characteristics: пробег": db_product.mileage,
-            "Characteristics: коробка": db_product.transmission,
-            "Characteristics: топливо": db_product.fuel,
-            "Characteristics: объем, см3": db_product.engine_volume,
-            "Characteristics: кузов": db_product.body,
-            "Characteristics: цвет": db_product.color,
-            "Characteristics: к-во дверей": db_product.door_count,
-            "Characteristics: к-во мест": db_product.seat_count,
-            "Characteristics: к-во владельцев": db_product.owner_count,
-            "Price": db_product.price,
-            "Text": db_product.text,
-            "Photo": images_field,
-            "URL": db_product.url,
-            "ДИЛЕР": db_product.dealer,
-            "SKU": db_product.sku,
-            "SEO title": db_product.seo_title,
-            "SEO descr": db_product.seo_description,
-            "SEO keywords": db_product.seo_keywords,
-            "SEO alt": db_product.seo_alt,
-            "Tabs:1": db_product.tab_one,
-            "Tabs:2": db_product.tab_two,
+            self.config_obj.database.title: db_product.title,
+            self.config_obj.database.category: db_product.category,
+            self.config_obj.database.model: db_product.model,
+            self.config_obj.database.year_of_release: db_product.year_of_release,
+            self.config_obj.database.mileage: db_product.mileage,
+            self.config_obj.database.transmission: db_product.transmission,
+            self.config_obj.database.fuel: db_product.fuel,
+            self.config_obj.database.engine_volume: db_product.engine_volume,
+            self.config_obj.database.body: db_product.body,
+            self.config_obj.database.color: db_product.color,
+            self.config_obj.database.door_count: db_product.door_count,
+            self.config_obj.database.seat_count: db_product.seat_count,
+            self.config_obj.database.owner_count: db_product.owner_count,
+            self.config_obj.database.price: db_product.price,
+            self.config_obj.database.text: db_product.text,
+            self.config_obj.database.images: images_field,
+            self.config_obj.database.url: db_product.url,
+            self.config_obj.database.dealer: db_product.dealer,
+            self.config_obj.database.sku: db_product.sku,
+            self.config_obj.database.seo_title: db_product.seo_title,
+            self.config_obj.database.seo_description: db_product.seo_description,
+            self.config_obj.database.seo_keywords: db_product.seo_keywords,
+            self.config_obj.database.seo_alt: db_product.seo_alt,
+            self.config_obj.database.tab_one: db_product.tab_one,
+            self.config_obj.database.tab_two: db_product.tab_two,
         }
 
     def get_products_count(self) -> int:

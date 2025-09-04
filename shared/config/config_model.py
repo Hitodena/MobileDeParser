@@ -123,6 +123,34 @@ class ApiConfig(BaseModel):
     tg_users: Set[int] = Field(default=set())
 
 
+class DatabaseConfig(BaseModel):
+    title: str = Field(default="Title")
+    category: str = Field(default="Category")
+    model: str = Field(default="Characteristics: модель")
+    year_of_release: str = Field(default="Characteristics: год выпуска")
+    mileage: str = Field(default="Characteristics: пробег")
+    transmission: str = Field(default="Characteristics: коробка")
+    fuel: str = Field(default="Characteristics: топливо")
+    engine_volume: str = Field(default="Characteristics: объем, см3")
+    body: str = Field(default="Characteristics: кузов")
+    color: str = Field(default="Characteristics: цвет")
+    door_count: str = Field(default="Characteristics: к-во дверей")
+    seat_count: str = Field(default="Characteristics: к-во мест")
+    owner_count: str = Field(default="Characteristics: к-во владельцев")
+    price: str = Field(default="Price")
+    text: str = Field(default="Text")
+    images: str = Field(default="Photo")
+    url: str = Field(default="URL")
+    dealer: str = Field(default="ДИЛЕР")
+    sku: str = Field(default="SKU")
+    seo_title: str = Field(default="SEO title")
+    seo_description: str = Field(default="SEO descr")
+    seo_keywords: str = Field(default="SEO keywords")
+    seo_alt: str = Field(default="SEO alt")
+    tab_one: str = Field(default="Tabs:1")
+    tab_two: str = Field(default="Tabs:2")
+
+
 class DataConfig(BaseModel):
     replacement_rules: Dict[str, str] = Field(
         default_factory=dict, min_length=1
@@ -139,4 +167,5 @@ class ConfigModel(BaseModel):
     templates: TemplatesConfig
     calculation: CalculationConfig
     api: ApiConfig
+    database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     data: DataConfig = Field(default_factory=DataConfig)

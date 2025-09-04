@@ -35,7 +35,7 @@ class ParserService:
             config_obj.parser.max_concurrency
         )
 
-        self.database_service = DatabaseService(config_obj.files.db_path)
+        self.database_service = DatabaseService(config_obj)
 
         self.service_logger = logger.bind(
             service="ParserService",

@@ -52,7 +52,7 @@ def read_csv_file(file_path: Path, delimiter: str = ";"):
 def save_products_from_database(
     config: ConfigModel,
 ) -> Optional[Tuple[Path, int]]:
-    db_service = DatabaseService(config.files.db_path)
+    db_service = DatabaseService(config)
     db_products = db_service.get_all_products()
 
     if not db_products:
