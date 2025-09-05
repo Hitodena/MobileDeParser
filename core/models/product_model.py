@@ -319,9 +319,8 @@ class ProductModel(BaseModel):
                 processed_count=len(processed_images),
                 rules=rules,
             ).debug("Dealer-specific image exclusions applied")
-            return processed_images
         if self.config.parser.exclude_ads_pictures > 0:
-            min_images = self.config.parser.exclude_ads_pictures + 1
+            min_images = self.config.parser.exclude_ads_pictures
             if original_count < min_images:
                 logger.bind(
                     image_count=original_count,
@@ -338,8 +337,20 @@ class ProductModel(BaseModel):
     ) -> List[str]:
         if not images:
             return images
+
         result = images.copy()
         original_count = len(result)
+
+        if self.config.parser.exclude_ads_pictures > 0:
+            min_images = self.config.parser.exclude_ads_pictures
+            print(original_count)
+            if original_count < min_images:
+                logger.bind(
+                    image_count=original_count,
+                    minimum_required=min_images,
+                ).debug("Images excluded due to global minimum requirement")
+                raise ModelExclusionError("No minimal images requirements")
+
         removed_images = []
 
         start_remove = rules.get("НАЧАЛО") or rules.get("start", "")
