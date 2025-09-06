@@ -17,7 +17,12 @@ from shared.utils.generate_headers import generate_headers
 
 class ProxyManager:
     def __init__(
-        self, proxy_file: Path, timeout: int | float, check_url: str
+        self,
+        proxy_file: Path,
+        timeout: int | float,
+        check_url: str,
+        check_retries: int,
+        check_interval: int,
     ) -> None:
         self.proxy_file = proxy_file
         self.timeout = ClientTimeout(total=timeout)
@@ -25,6 +30,8 @@ class ProxyManager:
         self.valid_proxies: List[str] = []
         self.failed_proxies: set[str] = set()
         self._current_proxy_index = 0
+        self.check_retries = check_retries
+        self.check_interval = check_interval
 
     async def check_proxy(self, proxy_string: str) -> str | None:
         if not proxy_string:
@@ -114,30 +121,54 @@ class ProxyManager:
             "Starting proxy validation"
         )
 
-        tasks = [self.check_proxy(proxy) for proxy in proxies]
-        results = await asyncio.gather(*tasks)
+        for attempt in range(self.check_retries):
+            loader_logger.bind(
+                attempt=attempt + 1,
+                max_retries=self.check_retries,
+                interval=self.check_interval,
+            ).info("Attempting to validate proxies")
 
-        self.valid_proxies = [proxy for proxy in results if proxy is not None]
-        valid_count = len(self.valid_proxies)
+            tasks = [self.check_proxy(proxy) for proxy in proxies]
+            results = await asyncio.gather(*tasks)
 
+            self.valid_proxies = [
+                proxy for proxy in results if proxy is not None
+            ]
+            valid_count = len(self.valid_proxies)
+
+            if self.valid_proxies:
+                loader_logger.bind(
+                    valid_proxies=valid_count,
+                    total_proxies=len(proxies),
+                    success_rate=round((valid_count / len(proxies)) * 100, 2),
+                    attempt=attempt + 1,
+                ).success("Proxy validation completed successfully")
+
+                random.shuffle(self.valid_proxies)
+                loader_logger.debug("Proxies shuffled for better distribution")
+                break
+            elif attempt < self.check_retries - 1:
+                loader_logger.bind(
+                    attempt=attempt + 1,
+                    max_retries=self.check_retries,
+                    next_retry_in=self.check_interval,
+                ).warning(
+                    f"No valid proxies found on attempt {attempt + 1}, "
+                    f"retrying in {self.check_interval} seconds"
+                )
+                await asyncio.sleep(self.check_interval)
+            else:
+                loader_logger.bind(
+                    total_attempts=self.check_retries,
+                    total_proxies=len(proxies),
+                ).error("No valid proxies found after all retry attempts")
+                raise OutOfProxiesException(
+                    f"No valid proxies found after {self.check_retries} attempts"
+                )
+
+    async def get_next_proxy(self) -> str:
         if not self.valid_proxies:
-            loader_logger.error("No valid proxies found during validation")
-            raise OutOfProxiesException(
-                "No valid proxies found during validation"
-            )
-
-        loader_logger.bind(
-            valid_proxies=valid_count,
-            total_proxies=len(proxies),
-            success_rate=round((valid_count / len(proxies)) * 100, 2),
-        ).success("Proxy validation completed")
-
-        random.shuffle(self.valid_proxies)
-        loader_logger.debug("Proxies shuffled for better distribution")
-
-    def get_next_proxy(self) -> str:
-        if not self.valid_proxies:
-            raise OutOfProxiesException("No valid proxies available")
+            await self.load_and_verify_proxies()
 
         proxy = self.valid_proxies[self._current_proxy_index]
         self._current_proxy_index = (self._current_proxy_index + 1) % len(
@@ -145,24 +176,19 @@ class ProxyManager:
         )
         return proxy
 
-    def get_random_proxy(self) -> str:
+    async def get_random_proxy(self) -> str:
         if not self.valid_proxies:
-            raise OutOfProxiesException("No valid proxies available")
+            await self.load_and_verify_proxies()
         return random.choice(self.valid_proxies)
 
-    def get_proxy_for_request(self, is_first_request: bool = True) -> str:
-        if not self.valid_proxies:
-            logger.bind(
-                available_proxies=0,
-                request_type="first" if is_first_request else "retry",
-            ).debug("No proxies available for request")
-            raise OutOfProxiesException("No valid proxies available")
-
+    async def get_proxy_for_request(
+        self, is_first_request: bool = True
+    ) -> str:
         proxy_type = "random" if is_first_request else "sequential"
         if is_first_request:
-            proxy = self.get_random_proxy()
+            proxy = await self.get_random_proxy()
         else:
-            proxy = self.get_next_proxy()
+            proxy = await self.get_next_proxy()
 
         logger.bind(
             proxy=proxy,

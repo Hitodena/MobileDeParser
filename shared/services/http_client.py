@@ -54,7 +54,7 @@ class HTTPClient:
             proxy = None
             if self.proxy_manager and self.proxy_manager.has_proxies:
                 is_first_attempt = attempt == 0
-                proxy = self.proxy_manager.get_proxy_for_request(
+                proxy = await self.proxy_manager.get_proxy_for_request(
                     is_first_attempt
                 )
 

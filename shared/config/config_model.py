@@ -47,6 +47,8 @@ class ParserConfig(BaseModel):
     proxy_timeout: float = Field(default=5)
     interval_between_parse: float = Field(default=1800)
     cycle: bool = Field(default=True)
+    proxy_check_retries: int = Field(default=3)
+    proxy_check_interval: int = Field(default=600)
 
     @field_validator("proxy_file", mode="after")
     @classmethod

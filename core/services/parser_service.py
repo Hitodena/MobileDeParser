@@ -19,6 +19,8 @@ from shared.utils.storage_management import (
 class ParserService:
     def __init__(self, config_obj: ConfigModel):
         self.proxy_manager = ProxyManager(
+            check_retries=config_obj.parser.proxy_check_retries,
+            check_interval=config_obj.parser.proxy_check_interval,
             proxy_file=config_obj.parser.proxy_file,
             timeout=config_obj.parser.proxy_timeout,
             check_url=config_obj.parser.check_url,

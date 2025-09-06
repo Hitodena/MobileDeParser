@@ -197,7 +197,11 @@ class ProductModel(BaseModel):
     @computed_field
     @property
     def processed_images_string(self) -> str:
-        return ",".join(self.get_processed_images())
+        return (
+            ",".join(self.get_processed_images())
+            if self.get_processed_images()
+            else ""
+        )
 
     def apply_text_replacements_to_text_field(self, text: List[str]) -> str:
         if not text:
@@ -319,14 +323,7 @@ class ProductModel(BaseModel):
                 processed_count=len(processed_images),
                 rules=rules,
             ).debug("Dealer-specific image exclusions applied")
-        if self.config.parser.exclude_ads_pictures > 0:
-            min_images = self.config.parser.exclude_ads_pictures
-            if original_count < min_images:
-                logger.bind(
-                    image_count=original_count,
-                    minimum_required=min_images,
-                ).debug("Images excluded due to global minimum requirement")
-                return []
+            return processed_images
         logger.bind(final_count=original_count).debug(
             "Images processed without exclusions"
         )
@@ -335,15 +332,11 @@ class ProductModel(BaseModel):
     def _apply_image_exclusions(
         self, images: List[str], rules: Dict[str, str]
     ) -> List[str]:
-        if not images:
-            return images
-
         result = images.copy()
         original_count = len(result)
 
         if self.config.parser.exclude_ads_pictures > 0:
             min_images = self.config.parser.exclude_ads_pictures
-            print(original_count)
             if original_count < min_images:
                 logger.bind(
                     image_count=original_count,
@@ -355,6 +348,9 @@ class ProductModel(BaseModel):
 
         start_remove = rules.get("НАЧАЛО") or rules.get("start", "")
         end_remove = rules.get("КОНЕЦ") or rules.get("end", "")
+
+        if not start_remove and not end_remove:
+            return []
 
         if start_remove and start_remove.strip():
             positions_to_remove = []
@@ -448,12 +444,6 @@ class ProductModel(BaseModel):
         try:
             self.check_exclusions()
             processed_images = self.get_processed_images()
-
-            if (
-                not processed_images
-                and self.config.parser.exclude_ads_pictures != -1
-            ):
-                raise ModelExclusionError("No minimal images requirements")
 
             if not self.dealer:
                 raise ModelExclusionError("No dealer available")
