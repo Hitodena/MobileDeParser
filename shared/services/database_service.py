@@ -144,7 +144,15 @@ class DatabaseService:
     def get_all_products(self) -> List[Dict]:
         with self.get_session() as session:
             products = session.query(ProductDB).all()
-            return [self._db_to_dict(product) for product in products]
+            product_dicts = [self._db_to_dict(product) for product in products]
+            valid_products = [p for p in product_dicts if p]
+            logger.bind(
+                service="DatabaseService",
+                total_from_db=len(product_dicts),
+                valid_products=len(valid_products),
+                excluded_products=len(product_dicts) - len(valid_products),
+            ).info("Filtered products from database")
+            return valid_products
 
     def _db_to_dict(self, db_product: ProductDB) -> Dict:
         images_field = (
@@ -165,9 +173,48 @@ class DatabaseService:
                         for img in images_list
                         if img and img.strip()
                     ]
+
+                    if (
+                        self.config_obj.parser.exclude_ads_pictures > 0
+                        and len(clean_images)
+                        < self.config_obj.parser.exclude_ads_pictures
+                    ):
+                        logger.bind(
+                            service="DatabaseService",
+                            sku=db_product.sku,
+                            dealer=db_product.dealer,
+                            image_count=len(clean_images),
+                            minimum_required=self.config_obj.parser.exclude_ads_pictures,
+                        ).warning(
+                            "Product excluded due to insufficient images count"
+                        )
+                        return {}
+
                     images_field = ",".join(clean_images)
             except (json.JSONDecodeError, TypeError):
                 pass
+
+        if (
+            images_field
+            and self.config_obj.parser.exclude_ads_pictures > 0
+            and not (
+                images_field.startswith("[") and images_field.endswith("]")
+            )
+        ):
+            images_list = [
+                img.strip() for img in images_field.split(",") if img.strip()
+            ]
+            if len(images_list) < self.config_obj.parser.exclude_ads_pictures:
+                logger.bind(
+                    service="DatabaseService",
+                    sku=db_product.sku,
+                    dealer=db_product.dealer,
+                    image_count=len(images_list),
+                    minimum_required=self.config_obj.parser.exclude_ads_pictures,
+                ).warning(
+                    "Product excluded due to insufficient images count (comma-separated)"
+                )
+                return {}
 
         return {
             self.config_obj.database.title: db_product.title,
