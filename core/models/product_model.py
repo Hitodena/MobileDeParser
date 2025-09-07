@@ -324,25 +324,29 @@ class ProductModel(BaseModel):
                 rules=rules,
             ).debug("Dealer-specific image exclusions applied")
             return processed_images
-        logger.bind(final_count=original_count).debug(
-            "Images processed without exclusions"
-        )
-        return self.images
+        else:
+            if (
+                self.config.parser.exclude_ads_pictures > 0
+                and original_count < self.config.parser.exclude_ads_pictures
+            ):
+                logger.bind(
+                    dealer=self.dealer,
+                    image_count=original_count,
+                    minimum_required=self.config.parser.exclude_ads_pictures,
+                ).warning(
+                    "Images excluded due to global minimum requirement (no dealer rules)"
+                )
+                raise ModelExclusionError("No minimal images requirements")
+            logger.bind(final_count=original_count).debug(
+                "Images processed without exclusions"
+            )
+            return self.images
 
     def _apply_image_exclusions(
         self, images: List[str], rules: Dict[str, str]
     ) -> List[str]:
         result = images.copy()
         original_count = len(result)
-
-        if self.config.parser.exclude_ads_pictures > 0:
-            min_images = self.config.parser.exclude_ads_pictures
-            if original_count < min_images:
-                logger.bind(
-                    image_count=original_count,
-                    minimum_required=min_images,
-                ).debug("Images excluded due to global minimum requirement")
-                raise ModelExclusionError("No minimal images requirements")
 
         removed_images = []
 
@@ -408,6 +412,19 @@ class ProductModel(BaseModel):
             removed_images=removed_images,
             rules_applied=rules,
         ).debug("Image exclusions applied successfully")
+
+        if self.config.parser.exclude_ads_pictures > 0:
+            if len(result) < self.config.parser.exclude_ads_pictures:
+                logger.bind(
+                    dealer=self.dealer,
+                    original_count=original_count,
+                    final_count=len(result),
+                    minimum_required=self.config.parser.exclude_ads_pictures,
+                ).warning(
+                    "Images excluded due to global minimum requirement after exclusions applied"
+                )
+                raise ModelExclusionError("No minimal images requirements")
+
         return result
 
     def convert_price_to_rubles(self) -> Optional[str]:
