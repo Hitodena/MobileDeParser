@@ -325,10 +325,7 @@ class ProductModel(BaseModel):
             ).debug("Dealer-specific image exclusions applied")
             return processed_images
         else:
-            if (
-                self.config.parser.exclude_ads_pictures > 0
-                and original_count < self.config.parser.exclude_ads_pictures
-            ):
+            if original_count < self.config.parser.exclude_ads_pictures:
                 logger.bind(
                     dealer=self.dealer,
                     image_count=original_count,
@@ -413,17 +410,16 @@ class ProductModel(BaseModel):
             rules_applied=rules,
         ).debug("Image exclusions applied successfully")
 
-        if self.config.parser.exclude_ads_pictures > 0:
-            if len(result) < self.config.parser.exclude_ads_pictures:
-                logger.bind(
-                    dealer=self.dealer,
-                    original_count=original_count,
-                    final_count=len(result),
-                    minimum_required=self.config.parser.exclude_ads_pictures,
-                ).warning(
-                    "Images excluded due to global minimum requirement after exclusions applied"
-                )
-                raise ModelExclusionError("No minimal images requirements")
+        if len(result) < self.config.parser.exclude_ads_pictures:
+            logger.bind(
+                dealer=self.dealer,
+                original_count=original_count,
+                final_count=len(result),
+                minimum_required=self.config.parser.exclude_ads_pictures,
+            ).warning(
+                "Images excluded due to global minimum requirement after exclusions applied"
+            )
+            raise ModelExclusionError("No minimal images requirements")
 
         return result
 
@@ -461,6 +457,10 @@ class ProductModel(BaseModel):
         try:
             self.check_exclusions()
             processed_images = self.get_processed_images()
+            if len(processed_images) < self.config.parser.exclude_ads_pictures:
+                raise ModelExclusionError(
+                    "Product excluded due to insufficient images count"
+                )
 
             if not self.dealer:
                 raise ModelExclusionError("No dealer available")
