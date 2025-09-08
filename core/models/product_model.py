@@ -314,8 +314,18 @@ class ProductModel(BaseModel):
             return []
         original_count = len(self.images)
         image_exclusions = self.config.data.image_exclusions
+
+        # Проверяем, есть ли дилер в списке исключений
         if image_exclusions and self.dealer in image_exclusions:
-            rules = image_exclusions[self.dealer]
+            rules = image_exclusions.get(self.dealer)
+
+            # Если для дилера нет правил (пустая строка в CSV), возвращаем оригинальные фото
+            if not rules:
+                logger.bind(dealer=self.dealer).warning(
+                    "Dealer found in exclusion file, but no rules are defined."
+                )
+                return self.images
+
             processed_images = self._apply_image_exclusions(self.images, rules)
             logger.bind(
                 dealer=self.dealer,
@@ -325,6 +335,7 @@ class ProductModel(BaseModel):
             ).debug("Dealer-specific image exclusions applied")
             return processed_images
         else:
+            # Глобальная проверка, если для дилера нет правил в файле
             if original_count < self.config.parser.exclude_ads_pictures:
                 logger.bind(
                     dealer=self.dealer,
@@ -334,6 +345,7 @@ class ProductModel(BaseModel):
                     "Images excluded due to global minimum requirement (no dealer rules)"
                 )
                 raise ModelExclusionError("No minimal images requirements")
+
             logger.bind(final_count=original_count).debug(
                 "Images processed without exclusions"
             )

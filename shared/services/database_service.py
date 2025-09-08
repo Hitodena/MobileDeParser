@@ -175,8 +175,7 @@ class DatabaseService:
                     ]
 
                     if (
-                        self.config_obj.parser.exclude_ads_pictures > 0
-                        and len(clean_images)
+                        len(clean_images)
                         < self.config_obj.parser.exclude_ads_pictures
                     ):
                         logger.bind(
