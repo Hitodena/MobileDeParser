@@ -354,16 +354,21 @@ class ProductModel(BaseModel):
     def _apply_image_exclusions(
         self, images: List[str], rules: Dict[str, str]
     ) -> List[str]:
+        if not images:
+            return images
+
         result = images.copy()
         original_count = len(result)
-
         removed_images = []
 
         start_remove = rules.get("НАЧАЛО") or rules.get("start", "")
         end_remove = rules.get("КОНЕЦ") or rules.get("end", "")
 
-        if not start_remove and not end_remove:
-            return []
+        if not start_remove.strip() and not end_remove.strip():
+            logger.bind(dealer=self.dealer).debug(
+                "Exclusion rules are empty, returning original images"
+            )
+            return result
 
         if start_remove and start_remove.strip():
             positions_to_remove = []

@@ -129,9 +129,8 @@ class ConfigLoader:
                 dealer = row.get("ДИЛЕР", "").strip()
                 if dealer:
                     exclusions[dealer] = {
-                        "start": row.get("НАЧАЛО", "1"),
-                        "penultimate": row.get("ПРЕДПОСЛЕДНЯЯ", "*"),
-                        "last": row.get("ПОСЛЕДНЯЯ", "*"),
+                        "НАЧАЛО": row.get("НАЧАЛО", ""),
+                        "КОНЕЦ": row.get("КОНЕЦ", ""),
                     }
                 loaded_count += 1
             if loaded_count == 0:
