@@ -273,7 +273,10 @@ class MobileDeRuParser(BaseParser):
                             if mileage:
                                 data["mileage"] = mileage
 
-                        elif "Коробка передач" in label:
+                        elif (
+                            "Трансмиссия" in label
+                            or "Коробка передач" in label
+                        ):
                             data["transmission"] = value
 
                         elif "Топливо" in label:

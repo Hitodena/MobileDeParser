@@ -75,17 +75,17 @@ class ProductModel(BaseModel):
     def formatted_title(self) -> str:
         try:
             formatted = self.config.templates.title.format(
-                self.category,
-                self.processed_model,
-                self.year_of_release,
-                self.mileage,
-                self.processed_transmission,
+                category=self.category,
+                model=self.processed_model,
+                year=self.year_of_release,
+                mileage=self.mileage,
+                transmission=self.processed_transmission,
             ).strip()
             logger.bind(formatted_title=formatted).debug(
                 "Title formatted successfully"
             )
             return formatted
-        except (IndexError, KeyError) as e:
+        except (KeyError, ValueError) as e:
             fallback = f"{self.category} {self.processed_model}, {self.year_of_release}".strip()
             logger.bind(
                 error=str(e),
@@ -109,26 +109,17 @@ class ProductModel(BaseModel):
     def formatted_seo_title(self) -> str:
         try:
             formatted = self.config.templates.seo_title.format(
-                self.category,
-                self.processed_model,
-                self.year_of_release,
-                "",
-                "",
-                "",
-                self.processed_fuel or "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                self.price or "",
+                category=self.category,
+                model=self.processed_model,
+                year=self.year_of_release,
+                fuel=self.processed_fuel or "",
+                price=self.price or "",
             ).strip()
             logger.bind(formatted_seo_title=formatted).debug(
                 "SEO title formatted successfully"
             )
             return formatted
-        except (IndexError, KeyError) as e:
+        except (KeyError, ValueError) as e:
             fallback = f"{self.category} {self.processed_model}, {self.year_of_release} год. {self.processed_fuel}, цена {self.price} € — авто под заказ из Европы"
             logger.bind(
                 error=str(e),
@@ -142,26 +133,16 @@ class ProductModel(BaseModel):
     def formatted_seo_description(self) -> str:
         try:
             formatted = self.config.templates.seo_description.format(
-                self.category,
-                self.processed_model,
-                self.year_of_release,
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                self.price or "",
+                category=self.category,
+                model=self.processed_model,
+                year=self.year_of_release,
+                price=self.price or "",
             ).strip()
             logger.bind(formatted_seo_description=formatted).debug(
                 "SEO description formatted successfully"
             )
             return formatted
-        except (IndexError, KeyError) as e:
+        except (KeyError, ValueError) as e:
             fallback = f"Купить авто из Европы под заказ {self.category} {self.processed_model}, {self.year_of_release} за {self.price}€. Прозрачная история. Реальный пробег."
             logger.bind(
                 error=str(e),
