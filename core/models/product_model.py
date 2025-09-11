@@ -239,7 +239,9 @@ class ProductModel(BaseModel):
                 "No dealer exclusions configured"
             )
             return False
-        excluded = self.dealer in dealer_exclusions
+        excluded = self.dealer.lower() in [
+            dealer.lower() for dealer in dealer_exclusions
+        ]
         logger.bind(
             dealer=self.dealer,
             is_excluded=excluded,
@@ -254,9 +256,9 @@ class ProductModel(BaseModel):
                 "No brand exclusions configured"
             )
             return False
-        excluded = self.model in brand_exclusions
+        excluded = self.category in brand_exclusions
         logger.bind(
-            brand=self.model,
+            brand=self.category,
             is_excluded=excluded,
             total_exclusions=len(brand_exclusions),
         ).debug("Brand exclusion check completed")
@@ -275,7 +277,7 @@ class ProductModel(BaseModel):
 
         if self.is_brand_excluded():
             logger.bind(
-                brand=self.model,
+                brand=self.category,
                 dealer=self.dealer,
                 url=self.url,
             ).warning("Product excluded due to brand exclusion")
