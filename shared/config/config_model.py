@@ -77,6 +77,7 @@ class FilesConfig(BaseModel):
     replaces_file: Path = Field(default=Path("var/www/mobile/replaces.csv"))
     files_dir: Path = Field(default=Path("var/www/mobile/files"))
     db_path: str = Field(default="sqlite:///var/www/mobile/files/products.db")
+    db_table_name: str = Field(default="products")
 
     @field_validator("files_dir", mode="after")
     @classmethod

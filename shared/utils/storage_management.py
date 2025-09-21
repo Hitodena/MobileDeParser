@@ -7,7 +7,6 @@ from typing import Dict, List, Optional, Tuple
 from loguru import logger
 
 from shared.config.config_model import ConfigModel
-from shared.services.database_service import DatabaseService
 
 
 def read_csv_file(file_path: Path, delimiter: str = ";"):
@@ -52,6 +51,8 @@ def read_csv_file(file_path: Path, delimiter: str = ";"):
 def save_products_from_database(
     config: ConfigModel,
 ) -> Optional[Tuple[Path, int]]:
+    from shared.services.database_service import DatabaseService
+
     db_service = DatabaseService(config)
     db_products = db_service.get_all_products()
 

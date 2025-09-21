@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 
 from core.models.product_model import ProductModel
 from shared.config.config_model import ConfigModel
-from shared.models.database_model import Base, ProductDB
+from shared.models.database_model import Base, create_product_model
 
 
 class DatabaseService:
@@ -25,15 +25,19 @@ class DatabaseService:
         if not self._initialized and config_obj is not None:
             self.db_path = config_obj.files.db_path
             self.config_obj = config_obj
+            self.table_name = config_obj.files.db_table_name
+            self.ProductDB = create_product_model(self.table_name)
             self.engine = create_engine(self.db_path, echo=False)
             self.SessionLocal = sessionmaker(
                 autocommit=False, autoflush=False, bind=self.engine
             )
 
             Base.metadata.create_all(bind=self.engine)
-            logger.bind(service="DatabaseService", db_path=self.db_path).info(
-                "Database initialized"
-            )
+            logger.bind(
+                service="DatabaseService",
+                db_path=self.db_path,
+                table_name=self.table_name,
+            ).info("Database initialized")
             self._initialized = True
 
     def get_session(self):
@@ -42,14 +46,16 @@ class DatabaseService:
     def product_exists(self, sku: str) -> bool:
         with self.get_session() as session:
             product = (
-                session.query(ProductDB).filter(ProductDB.sku == sku).first()
+                session.query(self.ProductDB)
+                .filter(self.ProductDB.sku == sku)
+                .first()
             )
             return product is not None
 
     def get_all_existing_skus(self) -> set[str]:
         try:
             with self.get_session() as session:
-                skus = session.query(ProductDB.sku).all()
+                skus = session.query(self.ProductDB.sku).all()
                 return {sku[0] for sku in skus}
         except Exception as e:
             logger.bind(
@@ -112,8 +118,8 @@ class DatabaseService:
 
         return new_count, duplicate_count
 
-    def _convert_to_db_model(self, product: ProductModel) -> ProductDB:
-        return ProductDB(
+    def _convert_to_db_model(self, product: ProductModel):
+        return self.ProductDB(
             title=product.formatted_title,
             category=product.category,
             model=product.processed_model,
@@ -143,7 +149,7 @@ class DatabaseService:
 
     def get_all_products(self) -> List[Dict]:
         with self.get_session() as session:
-            products = session.query(ProductDB).all()
+            products = session.query(self.ProductDB).all()
             product_dicts = [self._db_to_dict(product) for product in products]
             valid_products = [p for p in product_dicts if p]
             logger.bind(
@@ -154,7 +160,7 @@ class DatabaseService:
             ).info("Filtered products from database")
             return valid_products
 
-    def _db_to_dict(self, db_product: ProductDB) -> Dict:
+    def _db_to_dict(self, db_product) -> Dict:
         images_field = (
             str(db_product.images) if db_product.images is not None else ""
         )
@@ -245,12 +251,12 @@ class DatabaseService:
 
     def get_products_count(self) -> int:
         with self.get_session() as session:
-            return session.query(ProductDB).count()
+            return session.query(self.ProductDB).count()
 
     def create_sql_dump(self, output_path: str) -> bool:
         try:
             with self.get_session() as session:
-                products = session.query(ProductDB).all()
+                products = session.query(self.ProductDB).all()
 
                 with open(output_path, "w", encoding="utf-8") as f:
                     f.write("-- SQL Dump of Products Database\n")
@@ -277,7 +283,7 @@ class DatabaseService:
             ).error("Error creating SQL dump")
             return False
 
-    def _create_insert_statement(self, product: ProductDB) -> str:
+    def _create_insert_statement(self, product) -> str:
         fields = [
             "title",
             "category",
@@ -338,12 +344,12 @@ class DatabaseService:
             f"'{product.updated_at.isoformat()}'",
         ]
 
-        return f"INSERT INTO products ({', '.join(fields)}) VALUES ({', '.join(values)});"
+        return f"INSERT INTO {self.table_name} ({', '.join(fields)}) VALUES ({', '.join(values)});"
 
     def clear_database(self) -> bool:
         try:
             with self.get_session() as session:
-                session.query(ProductDB).delete()
+                session.query(self.ProductDB).delete()
                 session.commit()
                 logger.bind(service="DatabaseService").info(
                     "Database cleared successfully"
