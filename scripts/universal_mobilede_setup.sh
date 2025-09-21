@@ -98,7 +98,7 @@ start_container() {
 
     # Остановка и удаление существующего контейнера
     print_info "Проверка существующего контейнера..."
-    if sudo docker ps -a | grep -q "$CONTAINER_NAME"; then
+    if sudo docker ps -a | grep -q -w "$CONTAINER_NAME"; then
         print_warning "Остановка существующего контейнера..."
         sudo docker stop "$CONTAINER_NAME" 2>/dev/null
         print_info "Удаление существующего контейнера..."
@@ -129,9 +129,9 @@ start_container() {
 
         # Ждем немного и проверяем статус
         sleep 10
-        if sudo docker ps | grep -q "$CONTAINER_NAME"; then
+        if sudo docker ps | grep -q -w "$CONTAINER_NAME"; then
             print_status "Контейнер работает корректно"
-            sudo docker ps | grep "$CONTAINER_NAME"
+            sudo docker ps | grep -w "$CONTAINER_NAME"
         else
             print_error "Контейнер остановился после запуска"
             echo "Логи контейнера:"
@@ -151,7 +151,7 @@ stop_container() {
     print_info "=== Остановка $CONTAINER_NAME ==="
 
     # Проверяем, существует ли контейнер
-    if sudo docker ps -a | grep -q "$CONTAINER_NAME"; then
+    if sudo docker ps -a | grep -q -w "$CONTAINER_NAME"; then
         print_info "Остановка контейнера $CONTAINER_NAME..."
 
         # Мягкая остановка
@@ -214,14 +214,14 @@ show_status() {
 
     echo
     echo "Docker контейнеры:"
-    if sudo docker ps | grep -q "$CONTAINER_NAME"; then
+    if sudo docker ps | grep -q -w "$CONTAINER_NAME"; then
         print_status "$CONTAINER_NAME: запущен"
-        sudo docker ps | grep "$CONTAINER_NAME"
+        sudo docker ps | grep -w "$CONTAINER_NAME"
     else
         print_error "$CONTAINER_NAME: не запущен"
-        if sudo docker ps -a | grep -q "$CONTAINER_NAME"; then
+        if sudo docker ps -a | grep -q -w "$CONTAINER_NAME"; then
             echo "Контейнер существует, но остановлен"
-            sudo docker ps -a | grep "$CONTAINER_NAME"
+            sudo docker ps -a | grep -w "$CONTAINER_NAME"
         fi
     fi
 
@@ -248,7 +248,7 @@ show_status() {
 
 # Функция показа логов
 show_logs() {
-    if sudo docker ps -a | grep -q "$CONTAINER_NAME"; then
+    if sudo docker ps -a | grep -q -w "$CONTAINER_NAME"; then
         print_info "Логи контейнера $CONTAINER_NAME:"
         sudo docker logs "$CONTAINER_NAME"
     else
@@ -482,9 +482,9 @@ check_system() {
 
     # Проверка Docker контейнеров
     echo "9. Проверка Docker контейнеров..."
-    if sudo docker ps -a | grep -q "$CONTAINER_NAME"; then
+    if sudo docker ps -a | grep -q -w "$CONTAINER_NAME"; then
         print_warning "Обнаружен существующий контейнер $CONTAINER_NAME"
-        sudo docker ps -a | grep "$CONTAINER_NAME" | while read line; do
+        sudo docker ps -a | grep -w "$CONTAINER_NAME" | while read line; do
             echo "  $line"
         done
     else
