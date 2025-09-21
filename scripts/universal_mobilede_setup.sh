@@ -69,7 +69,7 @@ show_help() {
     echo "  restart   - Перезапустить контейнер"
     echo "  status    - Показать статус"
     echo "  logs      - Показать логи контейнера"
-    echo "  install   - Установить systemd службы (включая автозапуск)"
+    echo "  install   - Установить systemd службы (автоматически заменяя старые)"
     echo "  uninstall - Удалить systemd службы"
     echo "  check     - Проверить готовность системы"
     echo "  help      - Показать эту справку"
@@ -128,7 +128,7 @@ start_container() {
         print_status "Контейнер $CONTAINER_NAME успешно запущен"
 
         # Ждем немного и проверяем статус
-        sleep 5
+        sleep 10
         if sudo docker ps | grep -q "$CONTAINER_NAME"; then
             print_status "Контейнер работает корректно"
             sudo docker ps | grep "$CONTAINER_NAME"
@@ -265,6 +265,34 @@ install_services() {
     if ! command -v docker &> /dev/null; then
         print_error "Docker не установлен. Установите Docker перед продолжением."
         exit 1
+    fi
+
+    # Проверяем и удаляем старые службы, если они существуют
+    print_info "Проверка существующих служб..."
+    if sudo systemctl list-unit-files | grep -q "${SERVICE_PREFIX}_"; then
+        print_warning "Найдены существующие службы $SERVICE_PREFIX, удаляем..."
+        sudo systemctl stop "${SERVICE_PREFIX}_bot.service" 2>/dev/null
+        sudo systemctl stop "${SERVICE_PREFIX}_configwatch.path" 2>/dev/null
+        sudo systemctl disable "${SERVICE_PREFIX}_bot.service" 2>/dev/null
+        sudo systemctl disable "${SERVICE_PREFIX}_configwatch.path" 2>/dev/null
+
+        sudo rm -f "$SYSTEMD_DIR/${SERVICE_PREFIX}_bot.service"
+        sudo rm -f "$SYSTEMD_DIR/${SERVICE_PREFIX}_configwatch.service"
+        sudo rm -f "$SYSTEMD_DIR/${SERVICE_PREFIX}_configwatch.path"
+
+        sudo systemctl daemon-reload
+        print_info "Старые службы удалены"
+
+        # Также проверяем и удаляем старые скрипты, если они существуют
+        if [ -f "$SCRIPT_DIR/${SERVICE_PREFIX}_docker_start.sh" ]; then
+            print_warning "Найден старый скрипт ${SERVICE_PREFIX}_docker_start.sh, рекомендуется удалить вручную"
+        fi
+        if [ -f "$SCRIPT_DIR/${SERVICE_PREFIX}_docker_stop.sh" ]; then
+            print_warning "Найден старый скрипт ${SERVICE_PREFIX}_docker_stop.sh, рекомендуется удалить вручную"
+        fi
+        if [ -f "$SCRIPT_DIR/${SERVICE_PREFIX}_docker_restart.sh" ]; then
+            print_warning "Найден старый скрипт ${SERVICE_PREFIX}_docker_restart.sh, рекомендуется удалить вручную"
+        fi
     fi
 
     # Создаем systemd service файлы

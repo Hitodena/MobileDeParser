@@ -66,16 +66,16 @@ class ParserConfig(BaseModel):
 class FilesConfig(BaseModel):
     lines_limit: int = Field(default=450)
     brand_excludes_file: Path = Field(
-        default=Path("var/www/mobile/excludes_brand.csv")
+        default=Path("/var/www/mobile/excludes_brand.csv")
     )
     dealer_excludes_file: Path = Field(
-        default=Path("var/www/mobile/excludes_dealer.csv")
+        default=Path("/var/www/mobile/excludes_dealer.csv")
     )
     dealer_exclude_images_file: Path = Field(
-        default=Path("var/www/mobile/excludes_images.csv")
+        default=Path("/var/www/mobile/excludes_images.csv")
     )
-    replaces_file: Path = Field(default=Path("var/www/mobile/replaces.csv"))
-    files_dir: Path = Field(default=Path("var/www/mobile/files"))
+    replaces_file: Path = Field(default=Path("/var/www/mobile/replaces.csv"))
+    files_dir: Path = Field(default=Path("/var/www/mobile/files"))
     db_path: str = Field(default="sqlite:///var/www/mobile/files/products.db")
     db_table_name: str = Field(default="products")
 
