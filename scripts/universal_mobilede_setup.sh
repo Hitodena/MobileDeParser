@@ -69,7 +69,7 @@ show_help() {
     echo "  restart   - Перезапустить контейнер"
     echo "  status    - Показать статус"
     echo "  logs      - Показать логи контейнера"
-    echo "  install   - Установить systemd службы (автоматически заменяя старые)"
+    echo "  install   - Установить systemd службы (автоматически заменяя старые, с отслеживанием файлов)"
     echo "  uninstall - Удалить systemd службы"
     echo "  check     - Проверить готовность системы"
     echo "  help      - Показать эту справку"
@@ -334,10 +334,14 @@ EOF
     # Config watch path
     cat > "$SYSTEMD_DIR/$CONFIGWATCH_PATH" << EOF
 [Unit]
-Description=Watch ${SERVICE_PREFIX} configuration file
+Description=Watch ${SERVICE_PREFIX} configuration and data files
 
 [Path]
 PathModified=$PROJECT_DIR/$CONFIG_FILE
+PathModified=$DATA_DIR/excludes_brand.csv
+PathModified=$DATA_DIR/excludes_dealer.csv
+PathModified=$DATA_DIR/excludes_images.csv
+PathModified=$DATA_DIR/replaces.csv
 
 [Install]
 WantedBy=multi-user.target
@@ -355,7 +359,7 @@ EOF
     print_status "Службы установлены и включены в автозапуск:"
     echo "  - $BOT_SERVICE"
     echo "  - $CONFIGWATCH_SERVICE"
-    echo "  - $CONFIGWATCH_PATH"
+    echo "  - $CONFIGWATCH_PATH (отслеживает изменения конфига и файлов исключений)"
 
     print_info "Теперь можно запустить службы:"
     echo "  sudo $0 start"
