@@ -202,16 +202,18 @@ show_status() {
 
     # Статус служб
     echo "SystemD службы:"
+    bot_enabled_state=$(sudo systemctl is-enabled "$BOT_SERVICE" 2>/dev/null || true)
     if sudo systemctl is-active --quiet "$BOT_SERVICE" 2>/dev/null; then
-        print_status "$BOT_SERVICE: активна"
+        print_status "$BOT_SERVICE: активна (${bot_enabled_state:-unknown})"
     else
-        print_error "$BOT_SERVICE: не активна"
+        print_error "$BOT_SERVICE: не активна (${bot_enabled_state:-unknown})"
     fi
 
+    path_enabled_state=$(sudo systemctl is-enabled "$CONFIGWATCH_PATH" 2>/dev/null || true)
     if sudo systemctl is-active --quiet "$CONFIGWATCH_PATH" 2>/dev/null; then
-        print_status "$CONFIGWATCH_PATH: активно отслеживает изменения"
+        print_status "$CONFIGWATCH_PATH: активно (${path_enabled_state:-unknown})"
     else
-        print_error "$CONFIGWATCH_PATH: не отслеживает изменения"
+        print_error "$CONFIGWATCH_PATH: не активно (${path_enabled_state:-unknown})"
     fi
 
     echo
@@ -353,18 +355,19 @@ EOF
     print_info "Перезагрузка systemd..."
     sudo systemctl daemon-reload
 
-    # Включаем автозапуск служб
-    print_info "Включение автозапуска служб..."
-    sudo systemctl enable "$BOT_SERVICE"
-    sudo systemctl enable "$CONFIGWATCH_PATH"
+    # Включаем автозапуск и запускаем службы
+    print_info "Включение и запуск служб..."
+    sudo systemctl enable --now "$BOT_SERVICE"
+    sudo systemctl enable --now "$CONFIGWATCH_PATH"
 
-    print_status "Службы установлены и включены в автозапуск:"
+    print_status "Службы установлены, включены и запущены:"
     echo "  - $BOT_SERVICE"
     echo "  - $CONFIGWATCH_SERVICE"
     echo "  - $CONFIGWATCH_PATH (отслеживает изменения конфига и файлов исключений)"
 
-    print_info "Теперь можно запустить службы:"
-    echo "  sudo $0 start"
+    print_info "Проверка состояния (пример):"
+    echo "  systemctl status $BOT_SERVICE | cat"
+    echo "  systemctl status $CONFIGWATCH_PATH | cat"
 }
 
 # Функция удаления служб
@@ -376,6 +379,7 @@ uninstall_services() {
     print_info "Остановка и отключение служб..."
     sudo systemctl stop "$BOT_SERVICE" 2>/dev/null
     sudo systemctl stop "$CONFIGWATCH_PATH" 2>/dev/null
+    sudo systemctl stop "$CONFIGWATCH_SERVICE" 2>/dev/null
 
     sudo systemctl disable "$BOT_SERVICE" 2>/dev/null
     sudo systemctl disable "$CONFIGWATCH_PATH" 2>/dev/null
