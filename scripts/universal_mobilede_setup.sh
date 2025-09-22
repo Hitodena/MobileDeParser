@@ -6,13 +6,15 @@
 # Измените эти переменные для настройки копии парсера:
 
 # === НАСТРОЙКИ КОПИИ ===
+# Измените эти переменные для настройки вашей копии парсера:
+
 SERVICE_PREFIX="mobilede"          # Префикс для systemd служб (mobilede_bot.service, mobilede_configwatch.service)
 CONTAINER_NAME="mobilede"          # Имя Docker контейнера
 PROJECT_DIR="/var/www/mobile/parser"  # Путь к проекту
 IMAGE_NAME="mobilede-parser:latest"   # Имя Docker образа
 
-# === ДОПОЛНИТЕЛЬНЫЕ НАСТРОЙКИ ===
-DATA_DIR="/var/www/mobile"         # Директория с данными
+# Дополнительные настройки:
+DATA_DIR="/var/www/mobile"         # Директория с данными (для volume mapping)
 CONFIG_FILE="configuration.yaml"   # Имя конфигурационного файла
 PROXY_FILE="proxies.txt"          # Имя файла с прокси
 
@@ -269,7 +271,7 @@ install_services() {
 
     # Проверяем и удаляем старые службы, если они существуют
     print_info "Проверка существующих служб..."
-    if sudo systemctl list-unit-files | grep -q "${SERVICE_PREFIX}_"; then
+    if sudo systemctl list-unit-files | grep -q -E "^${BOT_SERVICE}[[:space:]]|^${CONFIGWATCH_SERVICE}[[:space:]]|^${CONFIGWATCH_PATH}[[:space:]]"; then
         print_warning "Найдены существующие службы $SERVICE_PREFIX, удаляем..."
         sudo systemctl stop "${SERVICE_PREFIX}_bot.service" 2>/dev/null
         sudo systemctl stop "${SERVICE_PREFIX}_configwatch.path" 2>/dev/null
@@ -471,9 +473,12 @@ check_system() {
 
     # Проверка существующих служб
     echo "8. Проверка существующих служб..."
-    if sudo systemctl list-unit-files | grep -q "${SERVICE_PREFIX}_"; then
+    # Ищем только службы с точными именами для этого экземпляра
+    existing_services=$(sudo systemctl list-unit-files | grep -E "^${BOT_SERVICE}[[:space:]]|^${CONFIGWATCH_SERVICE}[[:space:]]|^${CONFIGWATCH_PATH}[[:space:]]" || true)
+
+    if [ -n "$existing_services" ]; then
         print_warning "Обнаружены существующие службы $SERVICE_PREFIX"
-        sudo systemctl list-unit-files | grep "${SERVICE_PREFIX}_" | while read line; do
+        echo "$existing_services" | while read line; do
             echo "  - $line"
         done
     else
