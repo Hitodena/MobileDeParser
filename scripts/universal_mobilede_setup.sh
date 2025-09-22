@@ -208,10 +208,10 @@ show_status() {
         print_error "$BOT_SERVICE: не активна"
     fi
 
-    if sudo systemctl is-active --quiet "$CONFIGWATCH_SERVICE" 2>/dev/null; then
-        print_status "$CONFIGWATCH_SERVICE: активна"
+    if sudo systemctl is-active --quiet "$CONFIGWATCH_PATH" 2>/dev/null; then
+        print_status "$CONFIGWATCH_PATH: активно отслеживает изменения"
     else
-        print_error "$CONFIGWATCH_SERVICE: не активна"
+        print_error "$CONFIGWATCH_PATH: не отслеживает изменения"
     fi
 
     echo
