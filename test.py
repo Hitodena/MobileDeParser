@@ -7,7 +7,7 @@ from loguru import logger
 
 from core.parsers.mobilede_ru_parser import MobileDeRuParser
 
-url = "https://www.mobile.de/ru/%D1%82%D1%80%D0%B0%D0%BD%D1%81%D0%BF%D0%BE%D1%80%D1%82%D0%BD%D1%8B%D0%B5-%D1%81%D1%80%D0%B5%D0%B4%D1%81%D1%82%D0%B2%D0%B0/%D0%BF%D0%BE%D0%B4%D1%80%D0%BE%D0%B1%D0%BD%D0%BE%D1%81%D1%82%D0%B8.html?id=429884418&isSearchRequest=true&ref=srp&s=Car&vc=Car&searchId=7ee8f091-0cad-9065-dc44-60232cf89d77&refId=7ee8f091-0cad-9065-dc44-60232cf89d77"
+url = "https://www.mobile.de/ru/%D1%82%D1%80%D0%B0%D0%BD%D1%81%D0%BF%D0%BE%D1%80%D1%82%D0%BD%D1%8B%D0%B5-%D1%81%D1%80%D0%B5%D0%B4%D1%81%D1%82%D0%B2%D0%B0/%D0%BF%D0%BE%D0%B8%D1%81%D0%BA.html?isSearchRequest=true&ref=quickSearch&s=Car&vc=Car"
 
 logger.remove()
 logger.add(
@@ -33,10 +33,7 @@ async def main():
         async with session.get(url, headers=headers) as response:
             html = await response.text()
             parser = MobileDeRuParser(html, "https://www.mobile.de", url)
-            with open("test.csv", "w", newline="", encoding="utf-8") as f:
-                writer = csv.writer(f)
-                writer.writerow(parser.parse_for_data().to_csv_dict().keys())
-                writer.writerow(parser.parse_for_data().to_csv_dict().values())
+            print(parser.parse_for_links())
 
 
 if __name__ == "__main__":

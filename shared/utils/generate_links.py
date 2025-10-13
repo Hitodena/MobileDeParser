@@ -10,7 +10,7 @@ def generate_links(
 
     links = []
     for page in range(1, pages + 1):
-        link = f"{url_without_pagination},pgn:{page},pgs:{items_per_page}"
+        link = f"{url_without_pagination}&pageNumber={page}"
         links.append(link)
 
     return links
