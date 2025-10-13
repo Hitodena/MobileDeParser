@@ -39,7 +39,7 @@ class BaseParser(ABC):
             ).warning("Failed to extract text from element")
             return ""
 
-    def extract_attribute_safe(self, element: Any, attribute: str) -> str:
+    def  extract_attribute_safe(self, element: Any, attribute: str) -> str:
         try:
             if hasattr(element, "get"):
                 value = element.get(attribute)

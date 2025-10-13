@@ -1,4 +1,5 @@
 import asyncio
+import csv
 import sys
 
 import aiohttp
@@ -6,12 +7,12 @@ from loguru import logger
 
 from core.parsers.mobilede_ru_parser import MobileDeRuParser
 
-url = "https://www.mobile.de/ru/%D0%90%D0%B2%D1%82%D0%BE%D0%BC%D0%BE%D0%B1%D0%B8%D0%BB%D1%8C/Mercedes-Benz-A-250-e-Kompaktlimousine-AMG/vhc:car,cnt:de,pgn:12,pgs:50,srt:date,sro:desc,frn:2020,frx:2022,prn:10000,prx:60000,ccx:1799,dmg:false,rdv:true,vat:1/pg:vipcar/436847018.html"
+url = "https://www.mobile.de/ru/%D1%82%D1%80%D0%B0%D0%BD%D1%81%D0%BF%D0%BE%D1%80%D1%82%D0%BD%D1%8B%D0%B5-%D1%81%D1%80%D0%B5%D0%B4%D1%81%D1%82%D0%B2%D0%B0/%D0%BF%D0%BE%D0%B4%D1%80%D0%BE%D0%B1%D0%BD%D0%BE%D1%81%D1%82%D0%B8.html?id=429884418&isSearchRequest=true&ref=srp&s=Car&vc=Car&searchId=7ee8f091-0cad-9065-dc44-60232cf89d77&refId=7ee8f091-0cad-9065-dc44-60232cf89d77"
 
 logger.remove()
 logger.add(
     sys.stderr,
-    level="DEBUG",
+    level="INFO",
     format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
     "<level>{level: <8}</level> | "
     "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
@@ -32,7 +33,10 @@ async def main():
         async with session.get(url, headers=headers) as response:
             html = await response.text()
             parser = MobileDeRuParser(html, "https://www.mobile.de", url)
-            print(parser.parse_for_data().to_csv_dict())
+            with open("test.csv", "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(parser.parse_for_data().to_csv_dict().keys())
+                writer.writerow(parser.parse_for_data().to_csv_dict().values())
 
 
 if __name__ == "__main__":

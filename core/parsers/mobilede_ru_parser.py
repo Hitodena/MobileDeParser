@@ -1,4 +1,3 @@
-import json
 from typing import Dict, List, Optional
 from urllib.parse import urljoin
 
@@ -35,7 +34,9 @@ class MobileDeRuParser(BaseParser):
             return links
 
         try:
-            anchor_tags = self.html.find_all("a", class_="vehicle-data")
+            anchor_tags = self.html.find_all(
+                "a", class_="BaseListing_containerLink___4jHz"
+            )
 
             for anchor in anchor_tags:
                 href = self.extract_attribute_safe(anchor, "href")
@@ -125,7 +126,7 @@ class MobileDeRuParser(BaseParser):
 
     def _extract_title_fields(self, data: Dict) -> None:
         try:
-            title_element = self.html.find("h1")
+            title_element = self.html.find("h2")
             if title_element:
                 title_text = self.extract_text_safe(title_element).strip()
 
@@ -250,42 +251,55 @@ class MobileDeRuParser(BaseParser):
 
     def _extract_technical_fields(self, data: Dict) -> None:
         try:
-            tech_rows = self.html.find_all("div", class_="g-row")
+            tech_article = self.html.find(
+                "article", {"data-testid": "vip-technical-data-box"}
+            )
 
-            for row in tech_rows:
-                if isinstance(row, Tag):
-                    span_elements = row.find_all("span")
-                    if len(span_elements) >= 2:
-                        label = self.extract_text_safe(
-                            span_elements[0]
-                        ).strip()
-                        value = self.extract_text_safe(
-                            span_elements[1]
-                        ).strip()
+            if isinstance(tech_article, Tag):
+                dt_elements = tech_article.find_all("dt")
+                for dt_element in dt_elements:
+                    if not isinstance(dt_element, Tag):
+                        continue
 
-                        if "Первая регистрация" in label and "/" in value:
-                            year = value.split("/")[-1].strip()
-                            if year:
-                                data["year_of_release"] = year
+                    dd_element = dt_element.find_next_sibling("dd")
+                    if not isinstance(dd_element, Tag):
+                        continue
 
-                        elif "Пробег" in label:
-                            mileage = self.parse_only_numbers(value)
-                            if mileage:
-                                data["mileage"] = mileage
+                    label_text = self.extract_text_safe(dt_element).strip()
+                    value_text = self.extract_text_safe(dd_element).strip()
+                    data_testid = dt_element.get("data-testid", "")
 
-                        elif (
-                            "Трансмиссия" in label
-                            or "Коробка передач" in label
-                        ):
-                            data["transmission"] = value
+                    if (
+                        data_testid == "firstRegistration-item"
+                        or "Первая регистрация" in label_text
+                    ) and "/" in value_text:
+                        year = value_text.split("/")[-1].strip()
+                        if year:
+                            data["year_of_release"] = year
+                        continue
 
-                        elif "Топливо" in label:
-                            data["fuel"] = value
+                    if data_testid == "mileage-item" or "Пробег" in label_text:
+                        mileage = self.parse_only_numbers(value_text)
+                        if mileage:
+                            data["mileage"] = mileage
+                        continue
 
-                        elif "Объем двигателя" in label:
-                            volume = self.parse_only_numbers(value)
-                            if volume:
-                                data["engine_volume"] = volume
+                    if (
+                        data_testid == "transmission-item"
+                        or "Трансмиссия" in label_text
+                        or "Коробка передач" in label_text
+                    ):
+                        data["transmission"] = value_text
+                        continue
+
+                    if data_testid == "fuel-item" or "Топливо" in label_text:
+                        data["fuel"] = value_text
+                        continue
+
+                    if "Объем двигателя" in label_text:
+                        volume = self.parse_only_numbers(value_text)
+                        if volume:
+                            data["engine_volume"] = volume
 
             tech_fields_found = any(
                 [
@@ -312,41 +326,72 @@ class MobileDeRuParser(BaseParser):
 
     def _extract_additional_fields(self, data: Dict) -> None:
         try:
-            all_rows = self.html.find_all("div", class_="g-row")
+            tech_article = self.html.find(
+                "article", {"data-testid": "vip-technical-data-box"}
+            )
+            if isinstance(tech_article, Tag):
+                dt_elements = tech_article.find_all("dt")
+                for dt_element in dt_elements:
+                    if not isinstance(dt_element, Tag):
+                        continue
 
-            for row in all_rows:
-                if isinstance(row, Tag):
-                    span_elements = row.find_all("span")
-                    if len(span_elements) >= 2:
-                        label = self.extract_text_safe(
-                            span_elements[0]
-                        ).strip()
-                        value = self.extract_text_safe(
-                            span_elements[1]
-                        ).strip()
+                    dd_element = dt_element.find_next_sibling("dd")
+                    if not isinstance(dd_element, Tag):
+                        continue
 
-                        if "Категория" in label:
-                            data["body"] = value
+                    label_text = self.extract_text_safe(dt_element).strip()
+                    value_text = self.extract_text_safe(dd_element).strip()
+                    data_testid = dt_element.get("data-testid", "")
 
-                        elif "Цвет" in label:
-                            data["color"] = value
+                    if (
+                        data_testid == "category-item"
+                        or "Категория" in label_text
+                    ):
+                        category = value_text.strip()
+                        if category:
+                            data["body"] = category
+                        continue
 
-                        elif "дверей" in label or "дверь" in label:
-                            data["door_count"] = value
+                    if data_testid == "color-item" or "Цвет" in label_text:
+                        color = value_text.strip()
+                        if color:
+                            data["color"] = color
+                        continue
 
-                        elif "мест" in label or "Количество мест" in label:
-                            data["seat_count"] = value
+                    if (
+                        data_testid == "doorCount-item"
+                        or "Число дверей" in label_text
+                    ):
+                        door_count = value_text.strip()
+                        if door_count:
+                            data["door_count"] = door_count
+                        continue
 
-                        elif "владельцев" in label:
-                            data["owner_count"] = value
+                    if (
+                        data_testid == "numSeats-item"
+                        or "Количество мест" in label_text
+                    ):
+                        seat_count = value_text.strip()
+                        if seat_count:
+                            data["seat_count"] = seat_count
+                        continue
+
+                    if (
+                        data_testid == "numberOfPreviousOwners-item"
+                        or "Количество владельцев" in label_text
+                    ):
+                        owner_count = value_text.strip()
+                        if owner_count:
+                            data["owner_count"] = owner_count
+                        continue
 
             additional_fields_found = any(
                 [
-                    data["body"],
                     data["color"],
                     data["door_count"],
                     data["seat_count"],
                     data["owner_count"],
+                    data["body"],
                 ]
             )
 
@@ -365,7 +410,10 @@ class MobileDeRuParser(BaseParser):
 
     def _extract_price(self, data: Dict) -> None:
         try:
-            price_element = self.html.find("p", class_="h3 u-text-bold")
+            price_element = self.html.find(
+                "div",
+                class_="MainPriceArea_mainPrice__xCkfs typography_headlineLarge__jywu0",
+            )
             if price_element:
                 price_text = self.extract_text_safe(price_element)
                 price = self.parse_only_numbers(price_text)
@@ -406,32 +454,25 @@ class MobileDeRuParser(BaseParser):
 
     def _extract_images(self, data: Dict) -> None:
         try:
-            image_data_element = self.html.find("div", class_="js-image-data")
-            if image_data_element:
-                images_attr = self.extract_attribute_safe(
-                    image_data_element, "data-images"
-                )
-                if images_attr:
-                    try:
-                        images_list = json.loads(images_attr)
-                        if isinstance(images_list, list):
-                            data["images"] = images_list
+            image_data_element = self.html.find(
+                "div", {"data-testid": "image-gallery"}
+            )
+            img_elements = image_data_element.find_all("img")  # type: ignore
+            collected_urls: List[str] = []
 
-                            self.mobilede_logger.bind(
-                                image_count=len(images_list),
-                            ).debug("Images extracted successfully")
-                        else:
-                            self.mobilede_logger.warning(
-                                "Images data is not a list"
-                            )
-                    except json.JSONDecodeError as e:
-                        self.mobilede_logger.bind(
-                            error_message=str(e),
-                        ).warning("Failed to parse images JSON")
-                else:
-                    self.mobilede_logger.warning(
-                        "No images data attribute found"
-                    )
+            for img in img_elements:
+                if not isinstance(img, Tag):
+                    continue
+                src_value = self.extract_attribute_safe(img, "src")
+                if src_value and src_value not in collected_urls:
+                    collected_urls.append(src_value)
+                    continue
+
+            if collected_urls:
+                data["images"] = collected_urls
+                self.mobilede_logger.bind(
+                    image_count=len(collected_urls),
+                ).debug("Images extracted successfully (img elements)")
             else:
                 self.mobilede_logger.warning("No images element found")
 
@@ -447,7 +488,9 @@ class MobileDeRuParser(BaseParser):
             dealer_found = False
             for link in links:
                 link_url = self.extract_attribute_safe(link, "href")
-                if link_url.startswith("https://home.mobile.de/"):
+                if link_url.startswith(
+                    "https://home.mobile.de/home/redirect.html"
+                ):
                     data["dealer"] = link_url
                     self.mobilede_logger.bind(
                         dealer=data["dealer"],
@@ -467,14 +510,19 @@ class MobileDeRuParser(BaseParser):
     def _extract_feautres(self, data: Dict) -> None:
         try:
             feature_elements = self.html.find_all(
-                "p", class_="bullet-point-text"
+                "ul", {"data-testid": "vip-features-list"}
             )
-            features_list = []
+            features_list: List[str] = []
             for element in feature_elements:
-                if isinstance(element, Tag):
-                    feature_text = self.extract_text_safe(element).strip()
-                    if feature_text:
-                        features_list.append(feature_text)
+                if not isinstance(element, Tag):
+                    continue
+                li_elements = element.find_all("li")
+                for li in li_elements:
+                    if not isinstance(li, Tag):
+                        continue
+                    item_text = self.extract_text_safe(li).strip()
+                    if item_text:
+                        features_list.append(item_text)
 
             if features_list:
                 data["text"] = features_list
