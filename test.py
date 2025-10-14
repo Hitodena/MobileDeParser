@@ -1,5 +1,4 @@
 import asyncio
-import csv
 import sys
 
 import aiohttp

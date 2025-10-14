@@ -86,7 +86,7 @@ class MobileDeRuParser(BaseParser):
             "url": self.url,
             "dealer": "",
             "text": [],
-            "sku": self.url.split("/")[-1].split(".")[0],
+            "sku": self.url.split("?id=")[1].split("&")[0],
         }
 
         if not self.html:

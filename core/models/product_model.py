@@ -455,6 +455,39 @@ class ProductModel(BaseModel):
 
     def to_csv_dict(self) -> Dict[str, str]:
         try:
+            required_fields = {
+                "category": self.category,
+                "model": self.model,
+                "year_of_release": self.year_of_release,
+                "mileage": self.mileage,
+                "transmission": self.transmission,
+                "fuel": self.fuel,
+                "engine_volume": self.engine_volume,
+                "body": self.body,
+                "color": self.color,
+                "door_count": self.door_count,
+                "seat_count": self.seat_count,
+                "price": self.price,
+            }
+
+            missing_required = [
+                field_name
+                for field_name, value in required_fields.items()
+                if value is None
+                or (isinstance(value, str) and not value.strip())
+                or (isinstance(value, list) and not value)
+            ]
+
+            if missing_required:
+                logger.bind(
+                    dealer=self.dealer,
+                    sku=self.sku,
+                    missing_fields=missing_required,
+                ).warning("Product skipped due to missing required fields")
+                raise ModelExclusionError(
+                    f"Missing required fields: {', '.join(missing_required)}"
+                )
+
             self.check_exclusions()
             processed_images = self.get_processed_images()
             if len(processed_images) < self.config.parser.exclude_ads_pictures:
