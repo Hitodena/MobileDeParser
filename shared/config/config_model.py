@@ -141,6 +141,7 @@ class DatabaseConfig(BaseModel):
     door_count: str = Field(default="Characteristics: к-во дверей")
     seat_count: str = Field(default="Characteristics: к-во мест")
     owner_count: str = Field(default="Characteristics: к-во владельцев")
+    power: str = Field(default="Characteristics: мощность")
     price: str = Field(default="Price")
     text: str = Field(default="Text")
     images: str = Field(default="Photo")

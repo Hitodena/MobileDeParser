@@ -231,6 +231,7 @@ class DatabaseService:
             self.config_obj.database.transmission: db_product.transmission,
             self.config_obj.database.fuel: db_product.fuel,
             self.config_obj.database.engine_volume: db_product.engine_volume,
+            self.config_obj.database.power: db_product.power,
             self.config_obj.database.body: db_product.body,
             self.config_obj.database.color: db_product.color,
             self.config_obj.database.door_count: db_product.door_count,

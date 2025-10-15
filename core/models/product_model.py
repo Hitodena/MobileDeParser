@@ -458,17 +458,18 @@ class ProductModel(BaseModel):
 
     def to_csv_dict(self) -> Dict[str, str]:
         try:
+            # Basic required fields - these must be present
             required_fields = {
-                "color": self.color,
-                "images": self.images,
                 "category": self.category,
                 "model": self.model,
+                "color": self.color,
                 "year_of_release": self.year_of_release,
                 "mileage": self.mileage,
                 "transmission": self.transmission,
                 "fuel": self.fuel,
                 "body": self.body,
                 "price": self.price,
+                "images": self.images,
             }
 
             missing_required = [
@@ -508,12 +509,12 @@ class ProductModel(BaseModel):
                 "Characteristics: коробка": self.processed_transmission,
                 "Characteristics: топливо": self.processed_fuel,
                 "Characteristics: объем, см3": self.engine_volume,
+                "Characteristics: мощность": self.power,
                 "Characteristics: кузов": self.processed_body,
                 "Characteristics: цвет": self.processed_color,
                 "Characteristics: к-во дверей": self.door_count,
                 "Characteristics: к-во мест": self.seat_count,
                 "Characteristics: к-во владельцев": self.owner_count,
-                "Characteristics: мощность": self.power,
                 "Price": self.price,
                 "Text": self.processed_text,
                 "Photo": ",".join(processed_images),
