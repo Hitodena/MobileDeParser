@@ -30,7 +30,7 @@ def create_product_model(table_name: str):
         price = Column(String(100), nullable=False)
         text = Column(Text, nullable=False)
         images = Column(Text, nullable=False)
-        url = Column(String(1000), nullable=False)
+        url = Column(String(2000), nullable=False)
         dealer = Column(String(255), nullable=False)
         sku = Column(String(255), unique=True, nullable=False, index=True)
         seo_title = Column(Text, nullable=False)
