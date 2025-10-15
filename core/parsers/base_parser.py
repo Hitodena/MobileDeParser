@@ -39,7 +39,7 @@ class BaseParser(ABC):
             ).warning("Failed to extract text from element")
             return ""
 
-    def  extract_attribute_safe(self, element: Any, attribute: str) -> str:
+    def extract_attribute_safe(self, element: Any, attribute: str) -> str:
         try:
             if hasattr(element, "get"):
                 value = element.get(attribute)
@@ -101,6 +101,54 @@ class BaseParser(ABC):
                 error_message=str(e),
                 original_text=text,
             ).warning("Failed to parse numbers")
+            return None
+
+    def parse_power(self, text: str) -> Optional[str]:
+        """Parse power value, prioritizing horsepower (PS/l.s.) over kW"""
+        try:
+            if not text:
+                return None
+
+            cleaned_text = self.clean_text(text)
+
+            # Look for power in parentheses (usually horsepower)
+            # Pattern matches content inside parentheses
+            paren_match = re.search(r"\(([^)]+)\)", cleaned_text)
+            if paren_match:
+                paren_content = paren_match.group(1)
+                # Check if parentheses contain power units using regex for more flexibility
+                power_unit_pattern = r"\b(?:л\.?\s*с\.?|лс|ps|hp|bhp)\b"
+                if re.search(power_unit_pattern, paren_content, re.IGNORECASE):
+                    numbers_in_paren = re.findall(r"\d+", paren_content)
+                    if numbers_in_paren:
+                        result = numbers_in_paren[
+                            0
+                        ]  # Take first number (usually the main value)
+                        self.parser_logger.bind(
+                            original_text=text,
+                            extracted_power=result,
+                            source="parentheses",
+                        ).debug("Power extracted from parentheses")
+                        return result
+
+            # If no valid power in parentheses, take first number (kW)
+            numbers = re.findall(r"\d+", cleaned_text)
+            if numbers:
+                result = numbers[0]  # Take first number
+                self.parser_logger.bind(
+                    original_text=text,
+                    extracted_power=result,
+                    source="first_number",
+                ).debug("Power extracted as first number")
+                return result
+
+            return None
+        except Exception as e:
+            self.parser_logger.bind(
+                error_type=type(e).__name__,
+                error_message=str(e),
+                original_text=text,
+            ).warning("Failed to extract power")
             return None
 
     def clean_text(self, text: str) -> str:

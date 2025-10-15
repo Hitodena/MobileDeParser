@@ -133,6 +133,7 @@ class DatabaseService:
             door_count=product.processed_door_count,
             seat_count=product.seat_count,
             owner_count=product.owner_count,
+            power=product.power,
             price=product.price,
             text=product.processed_text,
             images=product.processed_images_string,

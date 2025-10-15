@@ -22,6 +22,9 @@ class ProductModel(BaseModel):
     owner_count: Optional[str] = Field(
         alias="Characteristics: к-во владельцев", default=None
     )
+    power: Optional[str] = Field(
+        alias="Characteristics: мощность", default=None
+    )
     price: str = Field(alias="Price")
     text: List[str] = Field(alias="Text", default_factory=list)
     images: List[str] = Field(alias="Photo", default_factory=list)
@@ -456,17 +459,15 @@ class ProductModel(BaseModel):
     def to_csv_dict(self) -> Dict[str, str]:
         try:
             required_fields = {
+                "color": self.color,
+                "images": self.images,
                 "category": self.category,
                 "model": self.model,
                 "year_of_release": self.year_of_release,
                 "mileage": self.mileage,
                 "transmission": self.transmission,
                 "fuel": self.fuel,
-                "engine_volume": self.engine_volume,
                 "body": self.body,
-                "color": self.color,
-                "door_count": self.door_count,
-                "seat_count": self.seat_count,
                 "price": self.price,
             }
 
@@ -512,6 +513,7 @@ class ProductModel(BaseModel):
                 "Characteristics: к-во дверей": self.door_count,
                 "Characteristics: к-во мест": self.seat_count,
                 "Characteristics: к-во владельцев": self.owner_count,
+                "Characteristics: мощность": self.power,
                 "Price": self.price,
                 "Text": self.processed_text,
                 "Photo": ",".join(processed_images),

@@ -200,7 +200,7 @@ class ParserService:
             skipped_count = 0
 
             for link in links:
-                sku = link.split("/")[-1].split(".")[0]
+                sku = link.split("?id=")[1].split("&")[0]
 
                 if not sku:
                     self.service_logger.bind(url=link).warning(

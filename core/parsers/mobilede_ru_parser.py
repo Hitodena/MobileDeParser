@@ -81,6 +81,7 @@ class MobileDeRuParser(BaseParser):
             "door_count": "",
             "seat_count": "",
             "owner_count": "",
+            "power": "",
             "price": "",
             "images": [],
             "url": self.url,
@@ -296,10 +297,18 @@ class MobileDeRuParser(BaseParser):
                         data["fuel"] = value_text
                         continue
 
-                    if "Объем двигателя" in label_text:
+                    if (
+                        data_testid == "cubicCapacity-item"
+                        or "Объем двигателя" in label_text
+                    ):
                         volume = self.parse_only_numbers(value_text)
                         if volume:
                             data["engine_volume"] = volume
+
+                    if data_testid == "power-item" or "Мощность" in label_text:
+                        power = self.parse_power(value_text)
+                        if power:
+                            data["power"] = power
 
             tech_fields_found = any(
                 [
@@ -308,6 +317,7 @@ class MobileDeRuParser(BaseParser):
                     data["transmission"],
                     data["fuel"],
                     data["engine_volume"],
+                    data["power"],
                 ]
             )
 
