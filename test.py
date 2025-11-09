@@ -39,24 +39,5 @@ async def main():
             print(parser.parse_for_links())
 
 
-async def main_2():
-    proxy_man = ProxyManager(
-        config.parser.proxy_file,
-        config.ai.timeout,
-        "https://openrouter.ai/openrouter/polaris-alpha/api",
-        3,
-        600,
-    )
-    client = HTTPClient(proxy_man, config.ai.timeout, config.ai.retries, 1, 1)
-    open_router = OpenRouterService(
-        client,
-        config.ai.api_key,
-        config.ai.model,
-        "[{id: 1, text: Мерседес 2020 года, пробег 5000км}]",
-        config.ai.prompt,
-    )
-    print(await open_router.get_response())
-
-
 if __name__ == "__main__":
-    asyncio.run(main_2())
+    asyncio.run(main())

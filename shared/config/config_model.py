@@ -1,7 +1,13 @@
 from pathlib import Path
-from typing import Dict, List, Literal, Set
+from typing import Dict, List, Literal, Self, Set
 
-from pydantic import BaseModel, Field, computed_field, field_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    computed_field,
+    field_validator,
+    model_validator,
+)
 
 from shared.utils.generate_links import generate_links
 
@@ -67,6 +73,7 @@ class AIConfig(BaseModel):
     enabled: bool = Field(default=True)
     api_key: str = Field(default="")
     model: str = Field(default="openrouter/polaris-alpha")
+    prompt_path: str = Field("prompt.txt")
     prompt: str = Field(
         default="Перепиши короткое описание автомобиля, сделай его уникальным и привлекательным. Сохрани факты. Максимум 2-3 предложения."
     )
@@ -75,6 +82,20 @@ class AIConfig(BaseModel):
     ref_field: str = Field(default="title")
     ref_prefix: str = Field(default="info|#|ИНФОРМАЦИЯ|#|")
     batch_count: int = Field(default=100)
+
+    @model_validator(mode="after")
+    def define_prompt(self) -> Self:
+        if self.enabled and self.api_key:
+            try:
+                path = Path(self.prompt_path)
+                prompt_content = open(path, encoding="utf-8").read().strip()
+                self.prompt = prompt_content
+                return self
+            except FileNotFoundError:
+                self.enabled = False
+                return self
+        else:
+            return self
 
 
 class FilesConfig(BaseModel):
