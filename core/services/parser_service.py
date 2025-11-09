@@ -461,6 +461,21 @@ class ParserService:
                 new_products=new_count,
                 duplicates=duplicates_count,
             ).info("Products saved to database")
+
+            if new_count > 0 and self.config_obj.ai.enabled:
+                self.service_logger.info(
+                    f"Starting AI processing for {new_count} new products"
+                )
+                try:
+                    await self._process_new_products_with_ai()
+                except Exception as ai_error:
+                    self.service_logger.bind(
+                        error_type=type(ai_error).__name__,
+                        error_message=str(ai_error),
+                    ).error(
+                        "AI processing failed, continuing without AI enhancement"
+                    )
+
         except Exception as e:
             error_msg = f"Failed to save products to database: {str(e)}"
             parsing_errors.append(error_msg)
@@ -475,6 +490,83 @@ class ParserService:
             ).warning("Parsing completed with errors")
 
         return products, None, saved_count
+
+    async def _process_new_products_with_ai(self):
+        from shared.services.openrouter_service import OpenRouterService
+
+        db_products_for_ai = self.database_service.get_all_products(
+            only_marked_for_ai=True
+        )
+
+        if not db_products_for_ai:
+            self.service_logger.info("No products marked for AI processing")
+            return
+
+        self.service_logger.bind(products_count=len(db_products_for_ai)).info(
+            "Found products marked for AI processing"
+        )
+
+        http_client = HTTPClient(
+            self.proxy_manager,
+            self.config_obj.ai.timeout,
+            self.config_obj.ai.retries,
+            self.config_obj.parser.delay_min,
+            self.config_obj.parser.delay_max,
+        )
+
+        ai_service = OpenRouterService(
+            http_client,
+            self.config_obj.ai.api_key,
+            self.config_obj.ai.model,
+            db_products_for_ai,
+            self.config_obj.ai.prompt,
+            self.config_obj,
+        )
+
+        ai_answer = await ai_service.batch_response()
+
+        self.service_logger.bind(results_count=len(ai_answer)).info(
+            "AI processing completed"
+        )
+
+        processed_count = 0
+        failed_count = 0
+
+        for ai_item in ai_answer:
+            ai_idx = ai_item.get("id")
+            enhanced_text = ai_item.get("text", "")
+
+            if (
+                ai_idx is not None
+                and ai_idx < len(db_products_for_ai)
+                and enhanced_text
+            ):
+                sku = db_products_for_ai[ai_idx].get(
+                    self.config_obj.database.sku, ""
+                )
+
+                if sku:
+                    original_prefix = self.config_obj.ai.ref_prefix
+                    new_value = original_prefix + enhanced_text
+
+                    field_success = self.database_service.update_product_field(
+                        sku, self.config_obj.ai.ref_field, new_value
+                    )
+
+                    marker_success = (
+                        self.database_service.update_marked_for_ai(sku, False)
+                    )
+
+                    if field_success and marker_success:
+                        processed_count += 1
+                    else:
+                        failed_count += 1
+
+        self.service_logger.bind(
+            processed=processed_count, failed=failed_count
+        ).success(
+            f"AI enhancement completed: {processed_count} updated, {failed_count} failed"
+        )
 
     async def close(self):
         if hasattr(self.http_client, "_session") and self.http_client._session:
@@ -543,11 +635,11 @@ class ParserService:
             ).error("Error creating SQL dump")
             return False
 
-    def export_from_database(self) -> Optional[Tuple[Path, int]]:
+    async def export_from_database(self) -> Optional[Tuple[Path, int]]:
         try:
             self.service_logger.info("Starting database export")
 
-            result = save_products_from_database(self.config_obj)
+            result = await save_products_from_database(self.config_obj)
 
             if result:
                 archive_path, saved_count = result

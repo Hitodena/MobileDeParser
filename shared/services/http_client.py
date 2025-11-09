@@ -1,4 +1,5 @@
 import asyncio
+import json
 import random
 from typing import Dict, Optional
 
@@ -136,6 +137,94 @@ class HTTPClient:
                 wait_time = min(2**attempt, 5)
                 attempt_logger.bind(wait_time=wait_time).info(
                     "Retrying request"
+                )
+                await asyncio.sleep(wait_time)
+
+        request_logger.bind(
+            final_exception_type=(
+                type(last_exception).__name__ if last_exception else "unknown"
+            )
+        ).error("All retry attempts failed")
+
+        raise last_exception or RequestException("All attempts failed")
+
+    async def post_json(
+        self, api_key: str, model: str, text: str, prompt: str
+    ) -> dict:
+        url = "https://openrouter.ai/api/v1/responses"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+
+        data = {"model": model, "input": f"{prompt}\n{text}"}
+        last_exception = None
+
+        request_logger = logger.bind(
+            url=url,
+            max_retries=self.retries,
+            available_proxies=(self.proxy_manager.proxy_count),
+        )
+
+        for attempt in range(self.retries + 1):
+            proxy = None
+            if self.proxy_manager and self.proxy_manager.has_proxies:
+                is_first_attempt = attempt == 0
+                proxy = await self.proxy_manager.get_proxy_for_request(
+                    is_first_attempt
+                )
+
+            try:
+                async with self._create_session() as session:
+                    formatted_proxy = (
+                        self.proxy_manager.format_proxy_for_aiohttp(proxy)
+                        if proxy
+                        else None
+                    )
+                    async with session.post(
+                        url, headers=headers, json=data, proxy=formatted_proxy
+                    ) as response:
+                        response.raise_for_status()
+                        content = await response.json()
+                        request_logger.bind(
+                            status_code=response.status,
+                            content_length=len(content),
+                        ).success("POST Request completed successfully")
+                        return content
+
+            except ClientResponseError as e:
+                last_exception = RequestException(f"Network error: {e}")
+                request_logger.bind(
+                    status_code=e.status,
+                    error_message=e.message,
+                    error_type="http_error",
+                ).warning("HTTP error occurred")
+
+                if e.status in [403, 407, 502, 503, 504] and proxy:
+                    self.proxy_manager.mark_proxy_as_failed(proxy)
+
+                if 400 <= e.status < 500 and e.status != 429:
+                    request_logger.bind(reason="client_error_no_retry").info(
+                        "Stopping retries"
+                    )
+                    break
+
+            except ClientError as e:
+                last_exception = RequestException(f"Network error: {e}")
+                request_logger.bind(
+                    error_type="network_error", error_class=type(e).__name__
+                ).warning("Network error occurred on POST Request")
+
+            except Exception as e:
+                last_exception = RequestException(f"Unexpected error: {e}")
+                request_logger.bind(
+                    error_type="unexpected_error", error_class=type(e).__name__
+                ).warning("Unexpected error occurred on POST Request")
+
+            if attempt < self.retries:
+                wait_time = min(2**attempt, 5)
+                request_logger.bind(wait_time=wait_time).info(
+                    "Retrying POST Request"
                 )
                 await asyncio.sleep(wait_time)
 

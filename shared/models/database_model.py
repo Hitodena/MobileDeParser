@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Integer, String, Text, func
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, func
 from sqlalchemy.orm import DeclarativeBase
 
 
@@ -39,6 +39,7 @@ def create_product_model(table_name: str):
         seo_alt = Column(Text, nullable=False)
         tab_one = Column(Text, nullable=False)
         tab_two = Column(Text, nullable=False)
+        marked_for_ai = Column(Boolean, default=True, nullable=False)
         created_at = Column(DateTime, default=func.now(), nullable=False)
         updated_at = Column(
             DateTime, default=func.now(), onupdate=func.now(), nullable=False

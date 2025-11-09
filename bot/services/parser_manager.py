@@ -266,9 +266,9 @@ class ParserManager:
             return self.scheduler.parser_service.create_sql_dump(output_path)
         return False
 
-    def export_from_database(self) -> Optional[Tuple[Path, int]]:
+    async def export_from_database(self) -> Optional[Tuple[Path, int]]:
         if self.scheduler and self.scheduler.parser_service:
-            return self.scheduler.parser_service.export_from_database()
+            return await self.scheduler.parser_service.export_from_database()
         return None
 
     def clear_database(self) -> bool:

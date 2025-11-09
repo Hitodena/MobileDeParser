@@ -180,7 +180,7 @@ class CommandHandlers:
                 "• Экспортирую все продукты из базы данных..."
             )
 
-            result = self.parser_manager.export_from_database()
+            result = await self.parser_manager.export_from_database()
 
             if result:
                 archive_path, exported_count = result

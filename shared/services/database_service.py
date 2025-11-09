@@ -146,11 +146,16 @@ class DatabaseService:
             seo_alt=product.formatted_title,
             tab_one=product.formatted_tab_one,
             tab_two=product.formatted_tab_two,
+            marked_for_ai=True,
         )
 
-    def get_all_products(self) -> List[Dict]:
+    def get_all_products(self, only_marked_for_ai: bool = False) -> List[Dict]:
         with self.get_session() as session:
-            products = session.query(self.ProductDB).all()
+            query = session.query(self.ProductDB)
+            if only_marked_for_ai:
+                query = query.filter(self.ProductDB.marked_for_ai.is_(True))
+
+            products = query.all()
             product_dicts = [self._db_to_dict(product) for product in products]
             valid_products = [p for p in product_dicts if p]
             logger.bind(
@@ -158,6 +163,7 @@ class DatabaseService:
                 total_from_db=len(product_dicts),
                 valid_products=len(valid_products),
                 excluded_products=len(product_dicts) - len(valid_products),
+                only_marked_for_ai=only_marked_for_ai,
             ).info("Filtered products from database")
             return valid_products
 
@@ -254,6 +260,61 @@ class DatabaseService:
     def get_products_count(self) -> int:
         with self.get_session() as session:
             return session.query(self.ProductDB).count()
+
+    def update_marked_for_ai(self, sku: str, marked: bool) -> bool:
+        try:
+            with self.get_session() as session:
+                product = (
+                    session.query(self.ProductDB)
+                    .filter(self.ProductDB.sku == sku)
+                    .first()
+                )
+                if product:
+                    product.marked_for_ai = marked # type:ignore
+                    session.commit()
+                    logger.bind(
+                        service="DatabaseService",
+                        sku=sku,
+                        marked_for_ai=marked,
+                    ).debug("Updated marked_for_ai flag")
+                    return True
+                return False
+        except Exception as e:
+            logger.bind(
+                service="DatabaseService",
+                sku=sku,
+                error_type=type(e).__name__,
+                error_message=str(e),
+            ).error("Error updating marked_for_ai flag")
+            return False
+
+    def update_product_field(self, sku: str, field_name: str, value: str) -> bool:
+        try:
+            with self.get_session() as session:
+                product = (
+                    session.query(self.ProductDB)
+                    .filter(self.ProductDB.sku == sku)
+                    .first()
+                )
+                if product:
+                    setattr(product, field_name, value)
+                    session.commit()
+                    logger.bind(
+                        service="DatabaseService",
+                        sku=sku,
+                        field=field_name,
+                    ).debug("Updated product field in database")
+                    return True
+                return False
+        except Exception as e:
+            logger.bind(
+                service="DatabaseService",
+                sku=sku,
+                field_name=field_name,
+                error_type=type(e).__name__,
+                error_message=str(e),
+            ).error("Error updating product field")
+            return False
 
     def create_sql_dump(self, output_path: str) -> bool:
         try:

@@ -5,6 +5,10 @@ import aiohttp
 from loguru import logger
 
 from core.parsers.mobilede_ru_parser import MobileDeRuParser
+from shared.config.config import config
+from shared.services.http_client import HTTPClient
+from shared.services.openrouter_service import OpenRouterService
+from shared.utils.proxy_manager import ProxyManager
 
 url = "https://www.mobile.de/ru/%D1%82%D1%80%D0%B0%D0%BD%D1%81%D0%BF%D0%BE%D1%80%D1%82%D0%BD%D1%8B%D0%B5-%D1%81%D1%80%D0%B5%D0%B4%D1%81%D1%82%D0%B2%D0%B0/%D0%BF%D0%BE%D0%B8%D1%81%D0%BA.html?isSearchRequest=true&ref=quickSearch&s=Car&vc=Car"
 
@@ -35,5 +39,24 @@ async def main():
             print(parser.parse_for_links())
 
 
+async def main_2():
+    proxy_man = ProxyManager(
+        config.parser.proxy_file,
+        config.ai.timeout,
+        "https://openrouter.ai/openrouter/polaris-alpha/api",
+        3,
+        600,
+    )
+    client = HTTPClient(proxy_man, config.ai.timeout, config.ai.retries, 1, 1)
+    open_router = OpenRouterService(
+        client,
+        config.ai.api_key,
+        config.ai.model,
+        "[{id: 1, text: Мерседес 2020 года, пробег 5000км}]",
+        config.ai.prompt,
+    )
+    print(await open_router.get_response())
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main_2())

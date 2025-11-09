@@ -63,6 +63,20 @@ class ParserConfig(BaseModel):
         )
 
 
+class AIConfig(BaseModel):
+    enabled: bool = Field(default=True)
+    api_key: str = Field(default="")
+    model: str = Field(default="openrouter/polaris-alpha")
+    prompt: str = Field(
+        default="Перепиши короткое описание автомобиля, сделай его уникальным и привлекательным. Сохрани факты. Максимум 2-3 предложения."
+    )
+    timeout: int = Field(default=600)
+    retries: int = Field(default=3)
+    ref_field: str = Field(default="title")
+    ref_prefix: str = Field(default="info|#|ИНФОРМАЦИЯ|#|")
+    batch_count: int = Field(default=100)
+
+
 class FilesConfig(BaseModel):
     lines_limit: int = Field(default=450)
     brand_excludes_file: Path = Field(
@@ -174,3 +188,4 @@ class ConfigModel(BaseModel):
     api: ApiConfig
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     data: DataConfig = Field(default_factory=DataConfig)
+    ai: AIConfig = Field(default_factory=AIConfig)

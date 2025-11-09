@@ -48,7 +48,7 @@ def read_csv_file(file_path: Path, delimiter: str = ";"):
     return []
 
 
-def save_products_from_database(
+async def save_products_from_database(
     config: ConfigModel,
 ) -> Optional[Tuple[Path, int]]:
     from shared.services.database_service import DatabaseService
