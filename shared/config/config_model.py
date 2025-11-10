@@ -80,7 +80,8 @@ class AIConfig(BaseModel):
     timeout: int = Field(default=600)
     retries: int = Field(default=3)
     ref_field: str = Field(default="title")
-    ref_prefix: str = Field(default="info|#|ИНФОРМАЦИЯ|#|")
+    out_field: str = Field(default="tab_two")
+    out_prefix: str = Field(default="info|#|ИНФОРМАЦИЯ|#|")
     batch_count: int = Field(default=100)
 
     @model_validator(mode="after")

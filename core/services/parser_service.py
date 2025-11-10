@@ -463,7 +463,11 @@ class ParserService:
             ).info("Products saved to database")
 
             if self.config_obj.ai.enabled:
-                marked_count = len(self.database_service.get_all_products(only_marked_for_ai=True))
+                marked_count = len(
+                    self.database_service.get_all_products(
+                        only_marked_for_ai=True
+                    )
+                )
                 if marked_count > 0:
                     self.service_logger.info(
                         f"Starting AI processing for all {marked_count} marked products"
@@ -548,11 +552,11 @@ class ParserService:
                 )
 
                 if sku:
-                    original_prefix = self.config_obj.ai.ref_prefix
+                    original_prefix = self.config_obj.ai.out_prefix
                     new_value = original_prefix + enhanced_text
 
                     field_success = self.database_service.update_product_field(
-                        sku, self.config_obj.ai.ref_field, new_value
+                        sku, self.config_obj.ai.out_field, new_value
                     )
 
                     marker_success = (
