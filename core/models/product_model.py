@@ -100,7 +100,7 @@ class ProductModel(BaseModel):
     @computed_field
     @property
     def formatted_tab_one(self) -> str:
-        return self.config.templates.tabs_one
+        return self.config.templates.tabs_one + self.formatted_title
 
     @computed_field
     @property
