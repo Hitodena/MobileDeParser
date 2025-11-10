@@ -41,9 +41,41 @@ class OpenRouterService:
 
             logger.success("Successfully extracted content from AI")
 
-            text = text.replace("'", '"')
-
-            return json.loads(text)
+            # Сначала пробуем как есть
+            try:
+                return json.loads(text)
+            except json.JSONDecodeError as e:
+                logger.bind(
+                    error_position=e.pos,
+                    error_line=e.lineno,
+                    error_col=e.colno,
+                    text_preview=text[:500]
+                ).warning("Failed to parse AI response, attempting fixes")
+                
+                # Попытка 1: Убрать переносы строк
+                text_fixed = text.replace('\n', ' ').replace('\r', ' ')
+                try:
+                    return json.loads(text_fixed)
+                except json.JSONDecodeError:
+                    pass
+                
+                # Попытка 2: Заменить одинарные кавычки на двойные
+                text_fixed = text.replace("'", '"')
+                try:
+                    return json.loads(text_fixed)
+                except json.JSONDecodeError:
+                    pass
+                
+                # Попытка 3: Обе исправления вместе
+                text_fixed = text.replace('\n', ' ').replace('\r', ' ').replace("'", '"')
+                try:
+                    return json.loads(text_fixed)
+                except json.JSONDecodeError:
+                    logger.bind(text_sample=text[:1000]).error(
+                        "All JSON fix attempts failed, returning empty list"
+                    )
+                    return []
+                    
         except Exception as exc:
             logger.bind(error=exc.__class__.__name__).exception(
                 "Failed to extract info from AI"
@@ -64,10 +96,12 @@ class OpenRouterService:
             batch_num = batch_idx // self.cfg.ai.batch_count + 1
             batch_items = self.items[batch_idx : batch_idx + self.cfg.ai.batch_count]
             
+            ref_field_name = self.cfg.database.model_dump().get(self.cfg.ai.ref_field, self.cfg.database.title)
+            
             query_list = [
                 {
                     "id": batch_idx + local_idx,
-                    "text": item.get(self.cfg.database.title, ""),
+                    "text": item.get(ref_field_name, item.get(self.cfg.database.title, "")),
                     "sku": item.get(self.cfg.database.sku, ""),
                 }
                 for local_idx, item in enumerate(batch_items)
@@ -83,14 +117,22 @@ class OpenRouterService:
                 batch_results = await self.get_response(query_str)
                 
                 if isinstance(batch_results, list):
-                    all_results.extend(batch_results)
+                    if batch_results:
+                        all_results.extend(batch_results)
+                        logger.bind(
+                            batch=f"{batch_num}/{total_batches}",
+                            results_count=len(batch_results)
+                        ).success("Batch processed successfully")
+                    else:
+                        logger.bind(
+                            batch=f"{batch_num}/{total_batches}"
+                        ).warning("Batch returned empty results")
                 else:
                     all_results.append(batch_results)
-                    
-                logger.bind(
-                    batch=f"{batch_num}/{total_batches}",
-                    results_count=len(batch_results) if isinstance(batch_results, list) else 1
-                ).success("Batch processed successfully")
+                    logger.bind(
+                        batch=f"{batch_num}/{total_batches}",
+                        results_count=1
+                    ).success("Batch processed successfully")
                 
             except Exception as exc:
                 logger.bind(
