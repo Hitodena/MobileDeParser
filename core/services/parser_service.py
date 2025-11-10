@@ -462,19 +462,21 @@ class ParserService:
                 duplicates=duplicates_count,
             ).info("Products saved to database")
 
-            if new_count > 0 and self.config_obj.ai.enabled:
-                self.service_logger.info(
-                    f"Starting AI processing for {new_count} new products"
-                )
-                try:
-                    await self._process_new_products_with_ai()
-                except Exception as ai_error:
-                    self.service_logger.bind(
-                        error_type=type(ai_error).__name__,
-                        error_message=str(ai_error),
-                    ).error(
-                        "AI processing failed, continuing without AI enhancement"
+            if self.config_obj.ai.enabled:
+                marked_count = len(self.database_service.get_all_products(only_marked_for_ai=True))
+                if marked_count > 0:
+                    self.service_logger.info(
+                        f"Starting AI processing for all {marked_count} marked products"
                     )
+                    try:
+                        await self._process_new_products_with_ai()
+                    except Exception as ai_error:
+                        self.service_logger.bind(
+                            error_type=type(ai_error).__name__,
+                            error_message=str(ai_error),
+                        ).error(
+                            "AI processing failed, continuing without AI enhancement"
+                        )
 
         except Exception as e:
             error_msg = f"Failed to save products to database: {str(e)}"
