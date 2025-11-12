@@ -23,7 +23,7 @@ class OpenRouterService:
         self.pr = prompt
         self.cfg = config
 
-    async def get_response(self, text: str) -> dict:
+    async def get_response(self, text: str) -> dict | None:
         logger.info("Extracting info from AI")
         try:
             response: dict = await self.client.post_json(
@@ -31,17 +31,21 @@ class OpenRouterService:
             )
             output = response.get("output", [])
             if not output:
-                raise ValueError("Empty output")
+                logger.error("Empty output from AI response")
+                return None
+
             content = output[0].get("content", [])
             if not content:
-                raise ValueError("Empty content")
+                logger.error("Empty content in AI response")
+                return None
+
             text = content[0].get("text")
             if not text:
-                raise ValueError("Empty text")
+                logger.error("Empty text in AI response")
+                return None
 
             logger.success("Successfully extracted content from AI")
 
-            # Сначала пробуем как есть
             try:
                 return json.loads(text)
             except json.JSONDecodeError as e:
@@ -49,97 +53,149 @@ class OpenRouterService:
                     error_position=e.pos,
                     error_line=e.lineno,
                     error_col=e.colno,
-                    text_preview=text[:500]
+                    text_preview=text[:500],
                 ).warning("Failed to parse AI response, attempting fixes")
-                
-                # Попытка 1: Убрать переносы строк
-                text_fixed = text.replace('\n', ' ').replace('\r', ' ')
+
+                text_fixed = text.replace("\n", " ").replace("\r", " ")
                 try:
                     return json.loads(text_fixed)
                 except json.JSONDecodeError:
                     pass
-                
-                # Попытка 2: Заменить одинарные кавычки на двойные
+
                 text_fixed = text.replace("'", '"')
                 try:
                     return json.loads(text_fixed)
                 except json.JSONDecodeError:
                     pass
-                
-                # Попытка 3: Обе исправления вместе
-                text_fixed = text.replace('\n', ' ').replace('\r', ' ').replace("'", '"')
+
+                text_fixed = (
+                    text.replace("\n", " ")
+                    .replace("\r", " ")
+                    .replace("'", '"')
+                )
                 try:
                     return json.loads(text_fixed)
                 except json.JSONDecodeError:
                     logger.bind(text_sample=text[:1000]).error(
-                        "All JSON fix attempts failed, returning empty list"
+                        "All JSON fix attempts failed"
                     )
-                    return []
-                    
+                    return None
+
         except Exception as exc:
             logger.bind(error=exc.__class__.__name__).exception(
                 "Failed to extract info from AI"
             )
-            raise
+            return None
 
     async def batch_response(self):
         all_results = []
-        total_batches = (len(self.items) + self.cfg.ai.batch_count - 1) // self.cfg.ai.batch_count
-        
+        failed_skus = []  # SKU записей, которые не удалось обработать
+
+        total_batches = (
+            len(self.items) + self.cfg.ai.batch_count - 1
+        ) // self.cfg.ai.batch_count
+
         logger.bind(
             total_items=len(self.items),
             batch_size=self.cfg.ai.batch_count,
-            total_batches=total_batches
+            total_batches=total_batches,
         ).info("Starting batch AI processing")
 
         for batch_idx in range(0, len(self.items), self.cfg.ai.batch_count):
             batch_num = batch_idx // self.cfg.ai.batch_count + 1
-            batch_items = self.items[batch_idx : batch_idx + self.cfg.ai.batch_count]
-            
-            ref_field_name = self.cfg.database.model_dump().get(self.cfg.ai.ref_field, self.cfg.database.title)
-            
-            query_list = [
-                {
-                    "id": batch_idx + local_idx,
-                    "text": item.get(ref_field_name, item.get(self.cfg.database.title, "")),
-                    "sku": item.get(self.cfg.database.sku, ""),
-                }
-                for local_idx, item in enumerate(batch_items)
+            batch_items = self.items[
+                batch_idx : batch_idx + self.cfg.ai.batch_count
             ]
-            
+
+            ref_field_name = self.cfg.database.model_dump().get(
+                self.cfg.ai.ref_field, self.cfg.database.title
+            )
+
+            query_list = []
+            batch_sku_map = {}
+
+            for local_idx, item in enumerate(batch_items):
+                global_id = batch_idx + local_idx
+                sku = item.get(self.cfg.database.sku, "")
+
+                query_list.append(
+                    {
+                        "id": global_id,
+                        "text": item.get(
+                            ref_field_name,
+                            item.get(self.cfg.database.title, ""),
+                        ),
+                        "sku": sku,
+                    }
+                )
+
+                if sku:
+                    batch_sku_map[global_id] = sku
+
             try:
                 query_str = str(query_list)
                 logger.bind(
                     batch=f"{batch_num}/{total_batches}",
-                    items_in_batch=len(query_list)
+                    items_in_batch=len(query_list),
                 ).info("Processing batch")
-                
+
                 batch_results = await self.get_response(query_str)
-                
+
+                if batch_results is None:
+                    failed_skus.extend(batch_sku_map.values())
+                    logger.bind(
+                        batch=f"{batch_num}/{total_batches}",
+                        failed_items=len(batch_sku_map),
+                    ).error(
+                        "Batch processing failed, marking all items as failed"
+                    )
+                    continue
+
                 if isinstance(batch_results, list):
                     if batch_results:
+                        returned_ids = set()
+                        for result in batch_results:
+                            if isinstance(result, dict) and "id" in result:
+                                returned_ids.add(result["id"])
+
+                        for item_id, sku in batch_sku_map.items():
+                            if item_id not in returned_ids:
+                                failed_skus.append(sku)
+                                logger.bind(
+                                    batch=f"{batch_num}/{total_batches}",
+                                    sku=sku,
+                                    item_id=item_id,
+                                ).warning("Item not returned in AI response")
+
                         all_results.extend(batch_results)
                         logger.bind(
                             batch=f"{batch_num}/{total_batches}",
-                            results_count=len(batch_results)
+                            results_count=len(batch_results),
+                            expected_count=len(query_list),
                         ).success("Batch processed successfully")
                     else:
+                        failed_skus.extend(batch_sku_map.values())
                         logger.bind(
-                            batch=f"{batch_num}/{total_batches}"
+                            batch=f"{batch_num}/{total_batches}",
+                            failed_items=len(batch_sku_map),
                         ).warning("Batch returned empty results")
                 else:
                     all_results.append(batch_results)
                     logger.bind(
-                        batch=f"{batch_num}/{total_batches}",
-                        results_count=1
-                    ).success("Batch processed successfully")
-                
+                        batch=f"{batch_num}/{total_batches}", results_count=1
+                    ).success("Batch processed successfully (single result)")
+
             except Exception as exc:
+                failed_skus.extend(batch_sku_map.values())
                 logger.bind(
                     batch=f"{batch_num}/{total_batches}",
                     error=exc.__class__.__name__,
-                    batch_start_idx=batch_idx
-                ).error("Failed to process batch, skipping")
+                    batch_start_idx=batch_idx,
+                    failed_items=len(batch_sku_map),
+                ).error("Failed to process batch, marking all items as failed")
 
-        logger.bind(total_results=len(all_results)).info("Batch processing completed")
-        return all_results
+        logger.bind(
+            total_results=len(all_results), total_failed=len(failed_skus)
+        ).info("Batch processing completed")
+
+        return all_results, failed_skus

@@ -156,8 +156,11 @@ class HTTPClient:
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
-
-        data = {"model": model, "input": f"{prompt}\n{text}"}
+        data = {
+            "model": model,
+            "input": f"{prompt}\n{text}",
+            "response_format": {"type": "json_object"},
+        }
         last_exception = None
 
         request_logger = logger.bind(
