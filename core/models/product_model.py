@@ -22,9 +22,7 @@ class ProductModel(BaseModel):
     owner_count: Optional[str] = Field(
         alias="Characteristics: к-во владельцев", default=None
     )
-    power: Optional[str] = Field(
-        alias="Characteristics: мощность", default=None
-    )
+    power: Optional[str] = Field(alias="Characteristics: мощность", default=None)
     price: str = Field(alias="Price")
     text: List[str] = Field(alias="Text", default_factory=list)
     images: List[str] = Field(alias="Photo", default_factory=list)
@@ -84,9 +82,7 @@ class ProductModel(BaseModel):
                 mileage=self.mileage,
                 transmission=self.processed_transmission,
             ).strip()
-            logger.bind(formatted_title=formatted).debug(
-                "Title formatted successfully"
-            )
+            logger.bind(formatted_title=formatted).debug("Title formatted successfully")
             return formatted
         except (KeyError, ValueError) as e:
             fallback = f"{self.category} {self.processed_model}, {self.year_of_release}".strip()
@@ -158,9 +154,7 @@ class ProductModel(BaseModel):
     @property
     def formatted_seo_keywords(self) -> str:
         brand_specific = f"авто из {self.category.lower()}, купить авто под заказ из {self.category.lower()}"
-        formatted = (
-            f"{self.config.templates.seo_keywords}, {brand_specific}".strip()
-        )
+        formatted = f"{self.config.templates.seo_keywords}, {brand_specific}".strip()
         logger.bind(formatted_seo_keywords=formatted).debug(
             "SEO keywords formatted successfully"
         )
@@ -182,9 +176,7 @@ class ProductModel(BaseModel):
     @property
     def processed_images_string(self) -> str:
         return (
-            ",".join(self.get_processed_images())
-            if self.get_processed_images()
-            else ""
+            ",".join(self.get_processed_images()) if self.get_processed_images() else ""
         )
 
     def apply_text_replacements_to_text_field(self, text: List[str]) -> str:
@@ -192,17 +184,13 @@ class ProductModel(BaseModel):
             return ""
         replacements = self.config.data.replacement_rules
         if not replacements:
-            logger.bind(text_length=len(text)).debug(
-                "No replacement rules available"
-            )
+            logger.bind(text_length=len(text)).debug("No replacement rules available")
             return "<br />".join(text)
         result = text
         replacements_made = 0
         for original, replacement in replacements.items():
             if original in result:
-                result = [
-                    item.replace(original, replacement) for item in result
-                ]
+                result = [item.replace(original, replacement) for item in result]
                 replacements_made += 1
         logger.bind(
             original_length=len(text),
@@ -238,9 +226,7 @@ class ProductModel(BaseModel):
     def is_dealer_excluded(self) -> bool:
         dealer_exclusions = self.config.data.dealer_exclusions
         if not dealer_exclusions:
-            logger.bind(dealer=self.dealer).debug(
-                "No dealer exclusions configured"
-            )
+            logger.bind(dealer=self.dealer).debug("No dealer exclusions configured")
             return False
         excluded = self.dealer.lower() in [
             dealer.lower() for dealer in dealer_exclusions
@@ -255,9 +241,7 @@ class ProductModel(BaseModel):
     def is_brand_excluded(self) -> bool:
         brand_exclusions = self.config.data.brand_exclusions
         if not brand_exclusions:
-            logger.bind(brand=self.model).debug(
-                "No brand exclusions configured"
-            )
+            logger.bind(brand=self.model).debug("No brand exclusions configured")
             return False
         excluded = self.category in brand_exclusions
         logger.bind(
@@ -274,9 +258,7 @@ class ProductModel(BaseModel):
                 model=self.model,
                 url=self.url,
             ).warning("Product excluded due to dealer exclusion")
-            raise ModelExclusionError(
-                f"Dealer '{self.dealer}' is in exclusion list"
-            )
+            raise ModelExclusionError(f"Dealer '{self.dealer}' is in exclusion list")
 
         if self.is_brand_excluded():
             logger.bind(
@@ -284,9 +266,7 @@ class ProductModel(BaseModel):
                 dealer=self.dealer,
                 url=self.url,
             ).warning("Product excluded due to brand exclusion")
-            raise ModelExclusionError(
-                f"Brand '{self.model}' is in exclusion list"
-            )
+            raise ModelExclusionError(f"Brand '{self.model}' is in exclusion list")
 
         logger.bind(
             dealer=self.dealer,
@@ -516,7 +496,7 @@ class ProductModel(BaseModel):
                 "Characteristics: к-во мест": self.seat_count,
                 "Characteristics: к-во владельцев": self.owner_count,
                 "Price": self.price,
-                "Text": self.processed_text,
+                "Text": self.config.templates.start_text,
                 "Photo": ",".join(processed_images),
                 "URL": self.url,
                 "ДИЛЕР": self.dealer,
