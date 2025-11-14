@@ -33,7 +33,9 @@ class ParserService:
             delay_max=config_obj.parser.delay_max,
         )
 
-        self.request_semaphore = asyncio.Semaphore(config_obj.parser.max_concurrency)
+        self.request_semaphore = asyncio.Semaphore(
+            config_obj.parser.max_concurrency
+        )
 
         self.database_service = DatabaseService(config_obj)
 
@@ -42,7 +44,9 @@ class ParserService:
             max_concurrency=config_obj.parser.max_concurrency,
         )
         self.config_obj = config_obj
-        self.progress_callback: Optional[Callable[[int, int, int], None]] = None
+        self.progress_callback: Optional[Callable[[int, int, int], None]] = (
+            None
+        )
 
     async def initialize(self) -> None:
         await self.proxy_manager.initialize()
@@ -50,7 +54,9 @@ class ParserService:
 
     async def check_and_refresh_proxies(self) -> bool:
         try:
-            self.service_logger.info("Checking and refreshing proxies from file")
+            self.service_logger.info(
+                "Checking and refreshing proxies from file"
+            )
 
             old_proxy_count = self.proxy_manager.proxy_count
 
@@ -94,7 +100,9 @@ class ParserService:
             except Exception as e:
                 self.service_logger.error(f"Progress callback error: {e}")
 
-    def _update_search_progress(self, processed_start_urls: int, total_start_urls: int):
+    def _update_search_progress(
+        self, processed_start_urls: int, total_start_urls: int
+    ):
         self._update_progress(processed_start_urls, 0, total_start_urls)
 
     def _update_parsing_progress(
@@ -103,7 +111,9 @@ class ParserService:
         found_products: int,
         total_links_to_parse: int,
     ):
-        self._update_progress(processed_products, found_products, total_links_to_parse)
+        self._update_progress(
+            processed_products, found_products, total_links_to_parse
+        )
 
     async def parse_links_from_url(
         self, url: str, parser_class: Type[BaseParser]
@@ -119,9 +129,9 @@ class ParserService:
                 )
                 links = parser.parse_for_links()
 
-                self.service_logger.bind(url=url, links_found=len(links)).success(
-                    "Link parsing completed"
-                )
+                self.service_logger.bind(
+                    url=url, links_found=len(links)
+                ).success("Link parsing completed")
 
                 return links
 
@@ -162,7 +172,9 @@ class ParserService:
 
         unique_links = list(set(all_links))
 
-        filtered_links = await self._filter_links_by_existing_skus(unique_links)
+        filtered_links = await self._filter_links_by_existing_skus(
+            unique_links
+        )
 
         self.service_logger.bind(
             total_links=len(all_links),
@@ -173,7 +185,9 @@ class ParserService:
 
         return filtered_links
 
-    async def _filter_links_by_existing_skus(self, links: List[str]) -> List[str]:
+    async def _filter_links_by_existing_skus(
+        self, links: List[str]
+    ) -> List[str]:
         try:
             existing_skus = self.database_service.get_all_existing_skus()
             existing_count = len(existing_skus)
@@ -226,7 +240,9 @@ class ParserService:
             self.service_logger.bind(
                 error_type=type(e).__name__,
                 error_message=str(e),
-            ).error("Failed to filter links by existing SKUs, returning all links")
+            ).error(
+                "Failed to filter links by existing SKUs, returning all links"
+            )
             return links
 
     async def parse_product_card(
@@ -236,7 +252,9 @@ class ParserService:
     ) -> Optional[ProductModel]:
         async with self.request_semaphore:
             try:
-                self.service_logger.bind(url=url).debug("Starting product card parsing")
+                self.service_logger.bind(url=url).debug(
+                    "Starting product card parsing"
+                )
 
                 html_content = await self.http_client.get_content(url)
 
@@ -289,9 +307,14 @@ class ParserService:
                 batch_size=len(batch_urls),
             ).info("Processing batch")
 
-            tasks = [self.parse_product_card(url, parser_class) for url in batch_urls]
+            tasks = [
+                self.parse_product_card(url, parser_class)
+                for url in batch_urls
+            ]
 
-            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+            batch_results = await asyncio.gather(
+                *tasks, return_exceptions=True
+            )
 
             for j, result in enumerate(batch_results):
                 processed_urls += 1
@@ -304,7 +327,9 @@ class ParserService:
                 elif isinstance(result, ProductModel):
                     all_products.append(result)
 
-            self._update_parsing_progress(processed_urls, len(all_products), len(urls))
+            self._update_parsing_progress(
+                processed_urls, len(all_products), len(urls)
+            )
 
         self.service_logger.bind(
             total_products=len(all_products), total_urls=len(urls)
@@ -326,16 +351,24 @@ class ParserService:
         parsing_errors = []
 
         try:
-            for i in range(0, len(start_urls), self.config_obj.parser.max_concurrency):
-                batch_urls = start_urls[i : i + self.config_obj.parser.max_concurrency]
+            for i in range(
+                0, len(start_urls), self.config_obj.parser.max_concurrency
+            ):
+                batch_urls = start_urls[
+                    i : i + self.config_obj.parser.max_concurrency
+                ]
 
                 self.service_logger.bind(
-                    link_batch_number=i // self.config_obj.parser.max_concurrency + 1,
+                    link_batch_number=i
+                    // self.config_obj.parser.max_concurrency
+                    + 1,
                     batch_size=len(batch_urls),
                 ).info("Processing links batch")
 
                 try:
-                    batch_links = await self.parse_links_batch(batch_urls, parser_class)
+                    batch_links = await self.parse_links_batch(
+                        batch_urls, parser_class
+                    )
                     all_links.extend(batch_links)
                     processed_start_urls += len(batch_urls)
 
@@ -355,7 +388,9 @@ class ParserService:
                         batch_urls=batch_urls,
                         error_type=type(e).__name__,
                         error_message=str(e),
-                    ).error("Batch link parsing failed, continuing with next batch")
+                    ).error(
+                        "Batch link parsing failed, continuing with next batch"
+                    )
 
         except Exception as e:
             error_msg = f"Critical error during link parsing: {str(e)}"
@@ -381,7 +416,9 @@ class ParserService:
         products = []
         if unique_links:
             try:
-                products = await self.parse_products_batch(unique_links, parser_class)
+                products = await self.parse_products_batch(
+                    unique_links, parser_class
+                )
             except OutOfProxiesException as e:
                 error_msg = f"No working proxies available: {str(e)}"
                 parsing_errors.append(error_msg)
@@ -415,8 +452,8 @@ class ParserService:
 
         saved_count = 0
         try:
-            new_count, duplicates_count = self.database_service.save_products_batch(
-                products
+            new_count, duplicates_count = (
+                self.database_service.save_products_batch(products)
             )
             saved_count = new_count
             self.service_logger.bind(
@@ -426,22 +463,15 @@ class ParserService:
             ).info("Products saved to database")
 
             if self.config_obj.ai.enabled:
-                marked_count = len(
-                    self.database_service.get_all_products(only_marked_for_ai=True)
-                )
-                if marked_count > 0:
-                    self.service_logger.info(
-                        f"Starting AI processing for all {marked_count} marked products"
+                try:
+                    await self._process_new_products_with_ai()
+                except Exception as ai_error:
+                    self.service_logger.bind(
+                        error_type=type(ai_error).__name__,
+                        error_message=str(ai_error),
+                    ).error(
+                        "AI processing failed, continuing without AI enhancement"
                     )
-                    try:
-                        await self._process_new_products_with_ai()
-                    except Exception as ai_error:
-                        self.service_logger.bind(
-                            error_type=type(ai_error).__name__,
-                            error_message=str(ai_error),
-                        ).error(
-                            "AI processing failed, continuing without AI enhancement"
-                        )
 
         except Exception as e:
             error_msg = f"Failed to save products to database: {str(e)}"
@@ -523,7 +553,9 @@ class ParserService:
                 and ai_idx < len(db_products_for_ai)
                 and enhanced_text
             ):
-                sku = db_products_for_ai[ai_idx].get(self.config_obj.database.sku, "")
+                sku = db_products_for_ai[ai_idx].get(
+                    self.config_obj.database.sku, ""
+                )
 
                 if sku:
                     original_prefix = self.config_obj.ai.out_prefix
@@ -533,8 +565,8 @@ class ParserService:
                         sku, self.config_obj.ai.out_field, new_value
                     )
 
-                    marker_success = self.database_service.update_marked_for_ai(
-                        sku, False
+                    marker_success = (
+                        self.database_service.update_marked_for_ai(sku, False)
                     )
 
                     if field_success and marker_success:
@@ -560,22 +592,29 @@ class ParserService:
         reset_count = 0
         for failed_sku in failed_skus:
             if failed_sku not in successfully_processed_skus:
-                if self.database_service.update_marked_for_ai(failed_sku, True):
+                if self.database_service.update_marked_for_ai(
+                    failed_sku, True
+                ):
                     reset_count += 1
                     self.service_logger.bind(sku=failed_sku).warning(
                         "Reset AI marker for failed product"
                     )
         missing_skus = (
-            all_processing_skus - successfully_processed_skus - set(failed_skus)
+            all_processing_skus
+            - successfully_processed_skus
+            - set(failed_skus)
         )
         if missing_skus:
             self.service_logger.bind(
-                missing_count=len(missing_skus), missing_skus=list(missing_skus)[:10]
+                missing_count=len(missing_skus),
+                missing_skus=list(missing_skus)[:10],
             ).warning(
                 "Some products were sent but not returned in results (showing first 10)"
             )
             for missing_sku in missing_skus:
-                if self.database_service.update_marked_for_ai(missing_sku, True):
+                if self.database_service.update_marked_for_ai(
+                    missing_sku, True
+                ):
                     reset_count += 1
 
         self.service_logger.bind(
@@ -593,14 +632,16 @@ class ParserService:
 
         self.service_logger.info("Parser service closed")
 
-    def save_products(self, products: List[ProductModel]) -> Optional[Tuple[Path, int]]:
+    def save_products(
+        self, products: List[ProductModel]
+    ) -> Optional[Tuple[Path, int]]:
         self.service_logger.bind(products_count=len(products)).info(
             "Starting products saving process"
         )
 
         try:
-            new_count, duplicates_count = self.database_service.save_products_batch(
-                products
+            new_count, duplicates_count = (
+                self.database_service.save_products_batch(products)
             )
 
             self.service_logger.bind(

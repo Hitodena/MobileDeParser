@@ -135,7 +135,7 @@ class DatabaseService:
             owner_count=product.owner_count,
             power=product.power,
             price=product.price,
-            text=product.processed_text,
+            text=self.config_obj.templates.start_text,
             images=product.processed_images_string,
             url=product.url,
             dealer=product.dealer,

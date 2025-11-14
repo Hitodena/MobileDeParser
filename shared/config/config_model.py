@@ -137,21 +137,19 @@ class FilesConfig(BaseModel):
 
 
 class TemplatesConfig(BaseModel):
-    title: str = Field(default="{0} {1}, {2}, {4}, пробег {3} км")
+    title: str = Field(default="")
     seo_title: str = Field(
-        default="{0} {1}, {2} год. {6}, цена {13} € — авто под заказ из Европы"
+        default=""
     )
     seo_description: str = Field(
-        default="Купить авто из Европы под заказ {0} {1}, {2} за {13}€. Прозрачная история. Реальный пробег."
+        default=""
     )
     seo_keywords: str = Field(
-        default="авто под заказ, авто из европы, купить авто под заказ из европы, авто из , купить авто под заказ из "
+        default=""
     )
-    start_text: str = Field(
-        default='<span style="color:#ff0000"><strong>ВНИМАНИЕ!!!<br />Цена авто указана в Европе, без таможни и доставки<br />Для расчёта полной цены - нажмите кнопку ЗАПРОС</strong></span><br /><br />'
-    )
-    tabs_one: str = Field(default="info|#|ИНФОРМАЦИЯ|#|")
-    tabs_two: str = Field(default="info|#|ИНФОРМАЦИЯ|#|")
+    start_text: str = Field(default="")
+    tabs_one: str = Field(default="")
+    tabs_two: str = Field(default="")
 
 
 class CalculationConfig(BaseModel):

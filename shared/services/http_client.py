@@ -1,7 +1,6 @@
 import asyncio
-import json
 import random
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from aiohttp import (
     ClientError,
@@ -151,14 +150,20 @@ class HTTPClient:
     async def post_json(
         self, api_key: str, model: str, text: str, prompt: str
     ) -> dict:
-        url = "https://openrouter.ai/api/v1/responses"
+        url = "https://openrouter.ai/api/v1/chat/completions"
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
         data = {
             "model": model,
-            "input": f"{prompt}\n{text}",
+            "messages": [
+                {"role": "system", "content": prompt},
+                {
+                    "role": "user",
+                    "content": text,
+                },
+            ],
             "response_format": {"type": "json_object"},
         }
         last_exception = None
@@ -188,10 +193,9 @@ class HTTPClient:
                         url, headers=headers, json=data, proxy=formatted_proxy
                     ) as response:
                         response.raise_for_status()
-                        content = await response.json()
+                        content: dict[str, Any] = await response.json()
                         request_logger.bind(
                             status_code=response.status,
-                            content_length=len(content),
                         ).success("POST Request completed successfully")
                         return content
 
@@ -225,7 +229,7 @@ class HTTPClient:
                 ).warning("Unexpected error occurred on POST Request")
 
             if attempt < self.retries:
-                wait_time = min(2**attempt, 5)
+                wait_time = 4**attempt
                 request_logger.bind(wait_time=wait_time).info(
                     "Retrying POST Request"
                 )

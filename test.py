@@ -5,10 +5,8 @@ import aiohttp
 from loguru import logger
 
 from core.parsers.mobilede_ru_parser import MobileDeRuParser
+from core.services.parser_service import ParserService
 from shared.config.config import config
-from shared.services.http_client import HTTPClient
-from shared.services.openrouter_service import OpenRouterService
-from shared.utils.proxy_manager import ProxyManager
 
 url = "https://www.mobile.de/ru/%D1%82%D1%80%D0%B0%D0%BD%D1%81%D0%BF%D0%BE%D1%80%D1%82%D0%BD%D1%8B%D0%B5-%D1%81%D1%80%D0%B5%D0%B4%D1%81%D1%82%D0%B2%D0%B0/%D0%BF%D0%BE%D0%B8%D1%81%D0%BA.html?isSearchRequest=true&ref=quickSearch&s=Car&vc=Car"
 
@@ -38,6 +36,9 @@ async def main():
             parser = MobileDeRuParser(html, "https://www.mobile.de", url)
             print(parser.parse_for_links())
 
+async def check_ai():
+    srv = ParserService(config)
+    await srv._process_new_products_with_ai()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(check_ai())

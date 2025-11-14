@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 from loguru import logger
 
@@ -29,19 +30,10 @@ class OpenRouterService:
             response: dict = await self.client.post_json(
                 self.ak, self.mod, text, self.pr
             )
-            output = response.get("output", [])
-            if not output:
-                logger.error("Empty output from AI response")
-                return None
-
-            content = output[0].get("content", [])
-            if not content:
-                logger.error("Empty content in AI response")
-                return None
-
-            text = content[0].get("text")
-            if not text:
-                logger.error("Empty text in AI response")
+            choices: list[dict[str, Any]] = response.get("choices", [{}])
+            msg = choices[0].get("message", {}).get("content", "")
+            if not msg:
+                logger.error("Empty message in AI response")
                 return None
 
             logger.success("Successfully extracted content from AI")

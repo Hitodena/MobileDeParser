@@ -496,7 +496,7 @@ class ProductModel(BaseModel):
                 "Characteristics: к-во мест": self.seat_count,
                 "Characteristics: к-во владельцев": self.owner_count,
                 "Price": self.price,
-                "Text": self.config.templates.start_text,
+                "Text": self.processed_text,
                 "Photo": ",".join(processed_images),
                 "URL": self.url,
                 "ДИЛЕР": self.dealer,
