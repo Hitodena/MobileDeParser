@@ -596,9 +596,11 @@ class ParserService:
                     failed_sku, True
                 ):
                     reset_count += 1
-                    self.service_logger.bind(sku=failed_sku).warning(
-                        "Reset AI marker for failed product"
-                    )
+
+        self.service_logger.bind(reset_count=reset_count).warning(
+            "Reset AI marker for failed product"
+        )
+
         missing_skus = (
             all_processing_skus
             - successfully_processed_skus
