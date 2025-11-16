@@ -153,7 +153,8 @@ class HTTPClient:
         url = "https://openrouter.ai/api/v1/chat/completions"
         headers = {
             "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
+            "HTTP_Referer": "MobileDeParser",
+            "X-Title": "MobileDeParser",
         }
         data = {
             "model": model,
@@ -182,6 +183,7 @@ class HTTPClient:
                     is_first_attempt
                 )
 
+            model_error = None
             try:
                 async with self._create_session() as session:
                     formatted_proxy = (
@@ -192,6 +194,7 @@ class HTTPClient:
                     async with session.post(
                         url, headers=headers, json=data, proxy=formatted_proxy
                     ) as response:
+                        model_error = await response.json()
                         response.raise_for_status()
                         content: dict[str, Any] = await response.json()
                         request_logger.bind(
@@ -205,6 +208,7 @@ class HTTPClient:
                     status_code=e.status,
                     error_message=e.message,
                     error_type="http_error",
+                    model_error=model_error,
                 ).warning("HTTP error occurred")
 
                 if e.status in [403, 407, 502, 503, 504] and proxy:
@@ -219,13 +223,17 @@ class HTTPClient:
             except ClientError as e:
                 last_exception = RequestException(f"Network error: {e}")
                 request_logger.bind(
-                    error_type="network_error", error_class=type(e).__name__
+                    error_type="network_error",
+                    error_class=type(e).__name__,
+                    model_error=model_error,
                 ).warning("Network error occurred on POST Request")
 
             except Exception as e:
                 last_exception = RequestException(f"Unexpected error: {e}")
                 request_logger.bind(
-                    error_type="unexpected_error", error_class=type(e).__name__
+                    error_type="unexpected_error",
+                    error_class=type(e).__name__,
+                    model_error=model_error,
                 ).warning("Unexpected error occurred on POST Request")
 
             if attempt < self.retries:
