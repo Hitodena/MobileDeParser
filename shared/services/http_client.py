@@ -176,23 +176,11 @@ class HTTPClient:
         )
 
         for attempt in range(self.retries + 1):
-            proxy = None
-            if self.proxy_manager and self.proxy_manager.has_proxies:
-                is_first_attempt = attempt == 0
-                proxy = await self.proxy_manager.get_proxy_for_request(
-                    is_first_attempt
-                )
-
             model_error = None
             try:
                 async with self._create_session() as session:
-                    formatted_proxy = (
-                        self.proxy_manager.format_proxy_for_aiohttp(proxy)
-                        if proxy
-                        else None
-                    )
                     async with session.post(
-                        url, headers=headers, json=data, proxy=formatted_proxy
+                        url, headers=headers, json=data
                     ) as response:
                         model_error = await response.json()
                         response.raise_for_status()
@@ -210,9 +198,6 @@ class HTTPClient:
                     error_type="http_error",
                     model_error=model_error,
                 ).warning("HTTP error occurred")
-
-                if e.status in [403, 407, 502, 503, 504] and proxy:
-                    self.proxy_manager.mark_proxy_as_failed(proxy)
 
                 if 400 <= e.status < 500 and e.status != 429:
                     request_logger.bind(reason="client_error_no_retry").info(

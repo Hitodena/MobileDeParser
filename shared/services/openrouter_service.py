@@ -39,36 +39,36 @@ class OpenRouterService:
             logger.success("Successfully extracted content from AI")
 
             try:
-                return json.loads(text)
+                return json.loads(msg)
             except json.JSONDecodeError as e:
                 logger.bind(
                     error_position=e.pos,
                     error_line=e.lineno,
                     error_col=e.colno,
-                    text_preview=text[:500],
+                    text_preview=msg[:500],
                 ).warning("Failed to parse AI response, attempting fixes")
 
-                text_fixed = text.replace("\n", " ").replace("\r", " ")
+                msg_fixed = msg.replace("\n", " ").replace("\r", " ")
                 try:
-                    return json.loads(text_fixed)
+                    return json.loads(msg_fixed)
                 except json.JSONDecodeError:
                     pass
 
-                text_fixed = text.replace("'", '"')
+                msg_fixed = msg.replace("'", '"')
                 try:
-                    return json.loads(text_fixed)
+                    return json.loads(msg_fixed)
                 except json.JSONDecodeError:
                     pass
 
-                text_fixed = (
-                    text.replace("\n", " ")
+                msg_fixed = (
+                    msg.replace("\n", " ")
                     .replace("\r", " ")
                     .replace("'", '"')
                 )
                 try:
-                    return json.loads(text_fixed)
+                    return json.loads(msg_fixed)
                 except json.JSONDecodeError:
-                    logger.bind(text_sample=text[:1000]).error(
+                    logger.bind(text_sample=msg[:1000]).error(
                         "All JSON fix attempts failed"
                     )
                     return None
