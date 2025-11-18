@@ -104,28 +104,30 @@ class OpenRouterService:
             )
 
             query_list = []
-            batch_sku_map = {}
+            batch_id_to_sku = {}
 
             for local_idx, item in enumerate(batch_items):
-                global_id = batch_idx + local_idx
+                item_id = item.get(self.cfg.database.id, "")
                 sku = item.get(self.cfg.database.sku, "")
+
+                if not item_id or not sku:
+                    continue
 
                 query_list.append(
                     {
-                        "id": global_id,
+                        "id": item_id,
                         "text": item.get(
                             ref_field_name,
                             item.get(self.cfg.database.title, ""),
-                        ),
-                        "sku": sku,
+                        )
                     }
                 )
 
                 if sku:
-                    batch_sku_map[global_id] = sku
+                    batch_id_to_sku[item_id] = sku
 
             try:
-                query_str = str(query_list)
+                query_str = json.dumps(query_list, ensure_ascii=False)
                 logger.bind(
                     batch=f"{batch_num}/{total_batches}",
                     items_in_batch=len(query_list),
@@ -134,10 +136,10 @@ class OpenRouterService:
                 batch_results = await self.get_response(query_str)
 
                 if batch_results is None:
-                    failed_skus.extend(batch_sku_map.values())
+                    failed_skus.extend(batch_id_to_sku.values())
                     logger.bind(
                         batch=f"{batch_num}/{total_batches}",
-                        failed_items=len(batch_sku_map),
+                        failed_items=len(batch_id_to_sku),
                     ).error(
                         "Batch processing failed, marking all items as failed"
                     )
@@ -150,7 +152,7 @@ class OpenRouterService:
                             if isinstance(result, dict) and "id" in result:
                                 returned_ids.add(result["id"])
 
-                        for item_id, sku in batch_sku_map.items():
+                        for item_id, sku in batch_id_to_sku.items():
                             if item_id not in returned_ids:
                                 failed_skus.append(sku)
                                 logger.bind(
@@ -166,10 +168,10 @@ class OpenRouterService:
                             expected_count=len(query_list),
                         ).success("Batch processed successfully")
                     else:
-                        failed_skus.extend(batch_sku_map.values())
+                        failed_skus.extend(batch_id_to_sku.values())
                         logger.bind(
                             batch=f"{batch_num}/{total_batches}",
-                            failed_items=len(batch_sku_map),
+                            failed_items=len(batch_id_to_sku),
                         ).warning("Batch returned empty results")
                 else:
                     all_results.append(batch_results)
@@ -178,12 +180,12 @@ class OpenRouterService:
                     ).success("Batch processed successfully (single result)")
 
             except Exception as exc:
-                failed_skus.extend(batch_sku_map.values())
+                failed_skus.extend(batch_id_to_sku.values())
                 logger.bind(
                     batch=f"{batch_num}/{total_batches}",
                     error=exc.__class__.__name__,
                     batch_start_idx=batch_idx,
-                    failed_items=len(batch_sku_map),
+                    failed_items=len(batch_id_to_sku),
                 ).error("Failed to process batch, marking all items as failed")
 
         logger.bind(

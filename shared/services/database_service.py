@@ -229,6 +229,7 @@ class DatabaseService:
                 return {}
 
         return {
+            self.config_obj.database.id: db_product.id,
             self.config_obj.database.title: db_product.title,
             self.config_obj.database.category: db_product.category,
             self.config_obj.database.model: db_product.model,
@@ -270,7 +271,7 @@ class DatabaseService:
                     .first()
                 )
                 if product:
-                    product.marked_for_ai = marked # type:ignore
+                    product.marked_for_ai = marked  # type:ignore
                     session.commit()
                     logger.bind(
                         service="DatabaseService",
@@ -288,7 +289,9 @@ class DatabaseService:
             ).error("Error updating marked_for_ai flag")
             return False
 
-    def update_product_field(self, sku: str, field_name: str, value: str) -> bool:
+    def update_product_field(
+        self, sku: str, field_name: str, value: str
+    ) -> bool:
         try:
             with self.get_session() as session:
                 product = (

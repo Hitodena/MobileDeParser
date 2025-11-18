@@ -138,15 +138,9 @@ class FilesConfig(BaseModel):
 
 class TemplatesConfig(BaseModel):
     title: str = Field(default="")
-    seo_title: str = Field(
-        default=""
-    )
-    seo_description: str = Field(
-        default=""
-    )
-    seo_keywords: str = Field(
-        default=""
-    )
+    seo_title: str = Field(default="")
+    seo_description: str = Field(default="")
+    seo_keywords: str = Field(default="")
     start_text: str = Field(default="")
     tabs_one: str = Field(default="")
     tabs_two: str = Field(default="")
@@ -162,6 +156,7 @@ class ApiConfig(BaseModel):
 
 
 class DatabaseConfig(BaseModel):
+    id: str = Field(default="id")
     title: str = Field(default="Title")
     category: str = Field(default="Category")
     model: str = Field(default="Characteristics: модель")

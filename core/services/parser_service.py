@@ -540,22 +540,27 @@ class ParserService:
         failed_count = 0
         successfully_processed_skus = set()
 
+        id_to_product = {}
+
+        for product in db_products_for_ai:
+            product_id = product.get(self.config_obj.database.id)
+            if product_id:
+                id_to_product[product_id] = product
+
         for ai_item in ai_answer:
             if not isinstance(ai_item, dict):
                 self.service_logger.warning("Invalid AI item format, skipping")
                 continue
 
-            ai_idx = ai_item.get("id")
+            ai_id = ai_item.get("id")
             enhanced_text = ai_item.get("text", "")
 
             if (
-                ai_idx is not None
-                and ai_idx < len(db_products_for_ai)
-                and enhanced_text
+                ai_id is not None
+                and ai_id in id_to_product and enhanced_text
             ):
-                sku = db_products_for_ai[ai_idx].get(
-                    self.config_obj.database.sku, ""
-                )
+                product = id_to_product[ai_id]
+                sku = product.get(self.config_obj.database.sku, "")
 
                 if sku:
                     original_prefix = self.config_obj.ai.out_prefix
@@ -584,7 +589,7 @@ class ParserService:
                         ).warning("Failed to update product in database")
             else:
                 self.service_logger.bind(
-                    ai_idx=ai_idx,
+                    ai_idx=ai_id,
                     has_text=bool(enhanced_text),
                     max_idx=len(db_products_for_ai) - 1,
                 ).warning("Invalid AI result item")

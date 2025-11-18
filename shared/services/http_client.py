@@ -162,10 +162,9 @@ class HTTPClient:
                 {"role": "system", "content": prompt},
                 {
                     "role": "user",
-                    "content": text,
+                    "content": f"{text}",
                 },
             ],
-            "response_format": {"type": "json_object"},
         }
         last_exception = None
 
