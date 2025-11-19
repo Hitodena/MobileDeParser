@@ -148,7 +148,7 @@ class HTTPClient:
         raise last_exception or RequestException("All attempts failed")
 
     async def post_json(
-        self, api_key: str, model: str, text: str, prompt: str
+        self, api_key: str, model: str, text: str, prompt: str, second_model: str = ""
     ) -> dict:
         url = "https://openrouter.ai/api/v1/chat/completions"
         headers = {
@@ -172,6 +172,8 @@ class HTTPClient:
             url=url,
             max_retries=self.retries,
             available_proxies=(self.proxy_manager.proxy_count),
+            primary_model=model,
+            fallback_model=second_model,
         )
 
         for attempt in range(self.retries + 1):
@@ -186,10 +188,20 @@ class HTTPClient:
                         content: dict[str, Any] = await response.json()
                         request_logger.bind(
                             status_code=response.status,
+                            used_model=data["model"],
                         ).success("POST Request completed successfully")
                         return content
 
             except ClientResponseError as e:
+                if e.status == 404 and second_model and data["model"] != second_model:
+                    request_logger.bind(
+                        status_code=e.status,
+                        failed_model=data["model"],
+                        switching_to=second_model,
+                    ).warning("Model returned 404, switching to second_model")
+                    data["model"] = second_model
+                    continue
+
                 last_exception = RequestException(f"Network error: {e}")
                 request_logger.bind(
                     status_code=e.status,

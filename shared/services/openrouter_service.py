@@ -28,7 +28,7 @@ class OpenRouterService:
         logger.info("Extracting info from AI")
         try:
             response: dict = await self.client.post_json(
-                self.ak, self.mod, text, self.pr
+                self.ak, self.mod, text, self.pr, self.cfg.ai.second_model
             )
             choices: list[dict[str, Any]] = response.get("choices", [{}])
             msg = choices[0].get("message", {}).get("content", "")

@@ -96,7 +96,8 @@ class ProductModel(BaseModel):
     @computed_field
     @property
     def formatted_tab_one(self) -> str:
-        return self.config.templates.tabs_one + self.processed_text
+        processed = self.processed_text
+        return self.config.templates.tabs_one + processed
 
     @computed_field
     @property
@@ -496,7 +497,7 @@ class ProductModel(BaseModel):
                 "Characteristics: к-во мест": self.seat_count,
                 "Characteristics: к-во владельцев": self.owner_count,
                 "Price": self.price,
-                "Text": self.processed_text,
+                "Text": self.config.templates.start_text,
                 "Photo": ",".join(processed_images),
                 "URL": self.url,
                 "ДИЛЕР": self.dealer,

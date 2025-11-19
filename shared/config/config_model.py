@@ -73,6 +73,7 @@ class AIConfig(BaseModel):
     enabled: bool = Field(default=True)
     api_key: str = Field(default="")
     model: str = Field(default="openrouter/polaris-alpha")
+    second_model: str = Field(default="")
     prompt_path: str = Field("prompt.txt")
     prompt: str = Field(
         default="Перепиши короткое описание автомобиля, сделай его уникальным и привлекательным. Сохрани факты. Максимум 2-3 предложения."
@@ -183,6 +184,7 @@ class DatabaseConfig(BaseModel):
     seo_alt: str = Field(default="SEO alt")
     tab_one: str = Field(default="Tabs:1")
     tab_two: str = Field(default="Tabs:2")
+    created_at: str = Field(default="Дата создания")
 
 
 class DataConfig(BaseModel):

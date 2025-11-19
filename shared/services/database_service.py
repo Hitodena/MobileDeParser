@@ -155,6 +155,7 @@ class DatabaseService:
             if only_marked_for_ai:
                 query = query.filter(self.ProductDB.marked_for_ai.is_(True))
 
+            query = query.order_by(self.ProductDB.created_at.desc())
             products = query.all()
             product_dicts = [self._db_to_dict(product) for product in products]
             valid_products = [p for p in product_dicts if p]
@@ -228,6 +229,10 @@ class DatabaseService:
                 )
                 return {}
 
+        created_at_str = ""
+        if hasattr(db_product, 'created_at') and db_product.created_at:
+            created_at_str = db_product.created_at.strftime('%d.%m.%Y %H:%M:%S')
+
         return {
             self.config_obj.database.id: db_product.id,
             self.config_obj.database.title: db_product.title,
@@ -256,6 +261,7 @@ class DatabaseService:
             self.config_obj.database.seo_alt: db_product.seo_alt,
             self.config_obj.database.tab_one: db_product.tab_one,
             self.config_obj.database.tab_two: db_product.tab_two,
+            self.config_obj.database.created_at: created_at_str,
         }
 
     def get_products_count(self) -> int:
