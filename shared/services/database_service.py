@@ -234,7 +234,6 @@ class DatabaseService:
             created_at_str = db_product.created_at.strftime('%d.%m.%Y %H:%M:%S')
 
         return {
-            self.config_obj.database.id: db_product.id,
             self.config_obj.database.title: db_product.title,
             self.config_obj.database.category: db_product.category,
             self.config_obj.database.model: db_product.model,
