@@ -155,7 +155,7 @@ class DatabaseService:
             if only_marked_for_ai:
                 query = query.filter(self.ProductDB.marked_for_ai.is_(True))
 
-            query = query.order_by(self.ProductDB.created_at.desc())
+            query = query.order_by(self.ProductDB.created_at.asc())
             products = query.all()
             product_dicts = [self._db_to_dict(product) for product in products]
             valid_products = [p for p in product_dicts if p]
