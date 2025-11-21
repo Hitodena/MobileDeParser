@@ -96,8 +96,7 @@ class ProductModel(BaseModel):
     @computed_field
     @property
     def formatted_tab_one(self) -> str:
-        processed = self.processed_text
-        return self.config.templates.tabs_one + processed
+        return self.config.templates.tabs_one + self.processed_text
 
     @computed_field
     @property
@@ -165,13 +164,12 @@ class ProductModel(BaseModel):
     @property
     def processed_text(self) -> str:
         processed = self.apply_text_replacements_to_text_field(self.text)
-        final_text = f"{self.config.templates.start_text}{processed}"
         logger.bind(
             original_length=len(self.text),
             processed_length=len(processed),
-            final_length=len(final_text),
+            final_length=len(processed),
         ).debug("Text processed successfully")
-        return final_text
+        return processed
 
     @computed_field
     @property
