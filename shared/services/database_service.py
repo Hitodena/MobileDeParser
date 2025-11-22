@@ -233,7 +233,8 @@ class DatabaseService:
         if hasattr(db_product, 'created_at') and db_product.created_at:
             created_at_str = db_product.created_at.strftime('%d.%m.%Y %H:%M:%S')
 
-        return {
+        product_dict = {
+            self.config_obj.database.id: db_product.id,
             self.config_obj.database.title: db_product.title,
             self.config_obj.database.category: db_product.category,
             self.config_obj.database.model: db_product.model,
@@ -262,6 +263,8 @@ class DatabaseService:
             self.config_obj.database.tab_two: db_product.tab_two,
             self.config_obj.database.created_at: created_at_str,
         }
+
+        return product_dict
 
     def get_products_count(self) -> int:
         with self.get_session() as session:

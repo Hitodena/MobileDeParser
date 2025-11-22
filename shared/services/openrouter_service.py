@@ -99,9 +99,22 @@ class OpenRouterService:
                 batch_idx : batch_idx + self.cfg.ai.batch_count
             ]
 
-            ref_field_name = self.cfg.database.model_dump().get(
-                self.cfg.ai.ref_field, self.cfg.database.title
+            ref_field_name = getattr(
+                self.cfg.database, 
+                self.cfg.ai.ref_field, 
+                self.cfg.database.title
             )
+
+            if batch_num == 1:
+                logger.bind(
+                    batch=f"{batch_num}/{total_batches}",
+                    ref_field_name=ref_field_name,
+                    ref_field_config=self.cfg.ai.ref_field,
+                    database_id=self.cfg.database.id,
+                    database_sku=self.cfg.database.sku,
+                    database_title=self.cfg.database.title,
+                    sample_item_keys=list(batch_items[0].keys())[:15] if batch_items else [],
+                ).info("Batch processing configuration")
 
             query_list = []
             batch_id_to_sku = {}
@@ -110,16 +123,40 @@ class OpenRouterService:
                 item_id = item.get(self.cfg.database.id, "")
                 sku = item.get(self.cfg.database.sku, "")
 
+                if batch_num == 1 and local_idx == 0:
+                    logger.bind(
+                        batch=f"{batch_num}/{total_batches}",
+                        item_id=item_id,
+                        sku=sku,
+                        item_keys=list(item.keys())[:20],
+                    ).info("First item in batch details")
+
                 if not item_id or not sku:
+                    if batch_num == 1 and local_idx < 3:
+                        logger.bind(
+                            batch=f"{batch_num}/{total_batches}",
+                            item_idx=local_idx,
+                            item_id=item_id,
+                            sku=sku,
+                            has_item_id=bool(item_id),
+                            has_sku=bool(sku),
+                        ).warning("Skipping item due to missing id or sku")
                     continue
+
+                ref_text = item.get(ref_field_name, "")
+                if not ref_text:
+                    logger.bind(
+                        batch=f"{batch_num}/{total_batches}",
+                        item_id=item_id,
+                        sku=sku,
+                        ref_field_name=ref_field_name,
+                        available_keys=list(item.keys())[:10],
+                    ).warning("Item missing ref_field text")
 
                 query_list.append(
                     {
                         "id": item_id,
-                        "text": item.get(
-                            ref_field_name,
-                            item.get(self.cfg.database.title, ""),
-                        )
+                        "text": ref_text or item.get(self.cfg.database.title, ""),
                     }
                 )
 
@@ -127,10 +164,19 @@ class OpenRouterService:
                     batch_id_to_sku[item_id] = sku
 
             try:
+                if not query_list:
+                    logger.bind(
+                        batch=f"{batch_num}/{total_batches}",
+                        batch_items_count=len(batch_items),
+                        ref_field_name=ref_field_name,
+                    ).warning("Query list is empty, skipping batch")
+                    continue
+
                 query_str = json.dumps(query_list, ensure_ascii=False)
                 logger.bind(
                     batch=f"{batch_num}/{total_batches}",
                     items_in_batch=len(query_list),
+                    query_preview=query_str[:200] if query_str else "",
                 ).info("Processing batch")
 
                 batch_results = await self.get_response(query_str)
