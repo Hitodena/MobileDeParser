@@ -135,7 +135,7 @@ class DatabaseService:
             owner_count=product.owner_count,
             power=product.power,
             price=product.price,
-            text=self.config_obj.templates.start_text,
+            text=product.proccessed_start_text,
             images=product.processed_images_string,
             url=product.url,
             dealer=product.dealer,
@@ -230,8 +230,10 @@ class DatabaseService:
                 return {}
 
         created_at_str = ""
-        if hasattr(db_product, 'created_at') and db_product.created_at:
-            created_at_str = db_product.created_at.strftime('%d.%m.%Y %H:%M:%S')
+        if hasattr(db_product, "created_at") and db_product.created_at:
+            created_at_str = db_product.created_at.strftime(
+                "%d.%m.%Y %H:%M:%S"
+            )
 
         product_dict = {
             self.config_obj.database.id: db_product.id,

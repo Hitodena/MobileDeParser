@@ -61,9 +61,7 @@ class OpenRouterService:
                     pass
 
                 msg_fixed = (
-                    msg.replace("\n", " ")
-                    .replace("\r", " ")
-                    .replace("'", '"')
+                    msg.replace("\n", " ").replace("\r", " ").replace("'", '"')
                 )
                 try:
                     return json.loads(msg_fixed)
@@ -100,9 +98,9 @@ class OpenRouterService:
             ]
 
             ref_field_name = getattr(
-                self.cfg.database, 
-                self.cfg.ai.ref_field, 
-                self.cfg.database.title
+                self.cfg.database,
+                self.cfg.ai.ref_field,
+                self.cfg.database.title,
             )
 
             if batch_num == 1:
@@ -113,7 +111,9 @@ class OpenRouterService:
                     database_id=self.cfg.database.id,
                     database_sku=self.cfg.database.sku,
                     database_title=self.cfg.database.title,
-                    sample_item_keys=list(batch_items[0].keys())[:15] if batch_items else [],
+                    sample_item_keys=(
+                        list(batch_items[0].keys())[:15] if batch_items else []
+                    ),
                 ).info("Batch processing configuration")
 
             query_list = []
@@ -156,7 +156,8 @@ class OpenRouterService:
                 query_list.append(
                     {
                         "id": item_id,
-                        "text": ref_text or item.get(self.cfg.database.title, ""),
+                        "text": ref_text
+                        or item.get(self.cfg.database.title, ""),
                     }
                 )
 
