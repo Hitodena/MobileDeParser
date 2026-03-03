@@ -62,7 +62,8 @@ async def save_products_from_database(
 
     Note:
         - Uses streaming to avoid loading all products into memory
-        - If the archive exceeds 48MB, it will be split into multiple archives
+        - CSV files split by line count (lines_limit)
+        - Archives split by total size (48MB limit)
     """
     from shared.services.database_service import DatabaseService
 
@@ -91,9 +92,11 @@ async def save_products_from_database(
             service="StorageManagement",
             total_products=total_products,
             lines_limit=lines_limit,
-        ).info("Starting to save products from database (streaming)")
+        ).info(
+            "Starting to save products from database (line-based CSV, size-based archives)"
+        )
 
-        # Stream products in chunks without loading all into memory
+        # Stream products in chunks by line count
         current_chunk: List[Dict] = []
         chunk_number = 0
 
@@ -150,7 +153,14 @@ async def save_products_from_database(
             temp_dir.rmdir()
             return None
 
-        # Create archives, splitting if needed to stay under 48MB
+        # Log final stats
+        logger.bind(
+            service="StorageManagement",
+            total_files=len(created_files),
+            total_products=total_saved_products,
+        ).info("All CSV files created")
+
+        # Create archives, grouping multiple CSV files until 48MB limit is reached
         archive_paths = _create_archives_split(
             created_files, files_dir, timestamp
         )
