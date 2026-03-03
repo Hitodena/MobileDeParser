@@ -293,63 +293,53 @@ def _create_archives_split(
     Returns:
         List of archive paths created
     """
+    # Filter existing files
+    existing_files = [f for f in file_paths if f.exists()]
+
+    if not existing_files:
+        logger.bind(service="StorageManagement").warning("No files to archive")
+        return []
+
+    # Calculate average file size for estimation
+    total_size = sum(f.stat().st_size for f in existing_files)
+    avg_file_size = total_size / len(existing_files) if existing_files else 0
+
+    # Estimate how many files fit in 48MB (accounting for ~30% compression)
+    # Using 70% of max size since compression reduces actual archive size
+    estimated_compression_ratio = 0.7
+    max_files_per_archive = (
+        int(
+            (MAX_ARCHIVE_SIZE_BYTES * estimated_compression_ratio)
+            / avg_file_size
+        )
+        if avg_file_size > 0
+        else len(existing_files)
+    )
+
+    # Ensure at least 1 file per archive
+    max_files_per_archive = max(1, max_files_per_archive)
+
     archive_paths: List[Path] = []
-    current_archive_files: List[Path] = []
     archive_part_number = 1
 
-    for file_path in file_paths:
-        if not file_path.exists():
-            logger.bind(
-                service="StorageManagement", file_path=str(file_path)
-            ).warning("File not found, skipping")
-            continue
+    # Split files into groups based on estimated size
+    for i in range(0, len(existing_files), max_files_per_archive):
+        group = existing_files[i : i + max_files_per_archive]
 
-        # Try adding this file to the current archive
-        current_archive_files.append(file_path)
-
-        # Check actual compressed size if we have more than one file
-        if len(current_archive_files) > 1:
-            temp_archive_path = files_dir / f"_temp_check.zip"
-            _create_archive(current_archive_files, temp_archive_path)
-            archive_size = temp_archive_path.stat().st_size
-            temp_archive_path.unlink()  # Remove temp file
-
-            # If archive exceeds limit, remove the last file and create archive
-            if archive_size > MAX_ARCHIVE_SIZE_BYTES:
-                # Remove the last file from current list
-                removed_file = current_archive_files.pop()
-
-                # Create archive with remaining files
-                archive_name = (
-                    f"mobile_{timestamp}_part{archive_part_number:02d}.zip"
-                )
-                archive_path = files_dir / archive_name
-                _create_archive(current_archive_files, archive_path)
-                archive_paths.append(archive_path)
-                logger.bind(
-                    service="StorageManagement",
-                    archive_path=str(archive_path),
-                    part_number=archive_part_number,
-                    files_count=len(current_archive_files),
-                ).info("Created archive part")
-
-                archive_part_number += 1
-
-                # Start new archive with the removed file
-                current_archive_files = [removed_file]
-
-    # Create final archive if there are remaining files
-    if current_archive_files:
+        # Create archive with this group
         archive_name = f"mobile_{timestamp}_part{archive_part_number:02d}.zip"
         archive_path = files_dir / archive_name
-        _create_archive(current_archive_files, archive_path)
+        _create_archive(group, archive_path)
         archive_paths.append(archive_path)
+
         logger.bind(
             service="StorageManagement",
             archive_path=str(archive_path),
             part_number=archive_part_number,
-            files_count=len(current_archive_files),
-        ).info("Created final archive part")
+            files_count=len(group),
+        ).info("Created archive part")
+
+        archive_part_number += 1
 
     logger.bind(
         service="StorageManagement",
