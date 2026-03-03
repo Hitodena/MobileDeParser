@@ -175,6 +175,7 @@ class CommandHandlers:
             await message.answer(f"• Ошибка: {str(e)}")
 
     async def export_db_command(self, message: Message):
+        """Export all products from database, splitting into multiple archives if needed."""
         try:
             await message.answer(
                 "• Экспортирую все продукты из базы данных..."
@@ -183,19 +184,41 @@ class CommandHandlers:
             result = await self.parser_manager.export_from_database()
 
             if result:
-                archive_path, exported_count = result
+                archive_paths, exported_count = result
 
                 from aiogram.types import FSInputFile
 
-                document = FSInputFile(str(archive_path))
+                if len(archive_paths) == 1:
+                    # Single archive - send as before
+                    document = FSInputFile(str(archive_paths[0]))
+                    await message.answer_document(
+                        document,
+                        caption=f"• Экспорт завершен!\n"
+                        f"• Экспортировано: {exported_count:,} продуктов\n"
+                        f"• Архив: {archive_paths[0].name}\n\n"
+                        f"• Архив содержит все продукты из базы данных",
+                    )
+                else:
+                    # Multiple archives - send each one with explanation
+                    await message.answer(
+                        f"• Экспорт завершен!\n"
+                        f"• Экспортировано: {exported_count:,} продуктов\n"
+                        f"• Создано архивов: {len(archive_paths)}\n"
+                        f"• Файл превысил 48MB, поэтому был разделен на части\n"
+                        f"• Отправляю архивы..."
+                    )
 
-                await message.answer_document(
-                    document,
-                    caption=f"• Экспорт завершен!\n"
-                    f"• Экспортировано: {exported_count:,} продуктов\n"
-                    f"• Архив: {archive_path.name}\n\n"
-                    f"• Архив содержит все продукты из базы данных",
-                )
+                    for i, archive_path in enumerate(archive_paths, 1):
+                        document = FSInputFile(str(archive_path))
+                        await message.answer_document(
+                            document,
+                            caption=f"• Часть {i} из {len(archive_paths)}: {archive_path.name}",
+                        )
+
+                    await message.answer(
+                        f"• Все части экспорта отправлены!\n"
+                        f"• Всего архивов: {len(archive_paths)}"
+                    )
             else:
                 await message.answer(
                     "• Нет данных для экспорта или ошибка при экспорте"

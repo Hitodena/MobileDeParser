@@ -555,10 +555,7 @@ class ParserService:
             ai_id = ai_item.get("id")
             enhanced_text = ai_item.get("text", "")
 
-            if (
-                ai_id is not None
-                and ai_id in id_to_product and enhanced_text
-            ):
+            if ai_id is not None and ai_id in id_to_product and enhanced_text:
                 product = id_to_product[ai_id]
                 sku = product.get(self.config_obj.database.sku, "")
 
@@ -701,19 +698,26 @@ class ParserService:
             ).error("Error creating SQL dump")
             return False
 
-    async def export_from_database(self) -> Optional[Tuple[Path, int]]:
+    async def export_from_database(self) -> Optional[Tuple[List[Path], int]]:
+        """Export all products from database to archives.
+
+        Returns:
+            Optional[Tuple[List[Path], int]]: List of archive paths and total count,
+                or None if no products found.
+        """
         try:
             self.service_logger.info("Starting database export")
 
             result = await save_products_from_database(self.config_obj)
 
             if result:
-                archive_path, saved_count = result
+                archive_paths, saved_count = result
                 self.service_logger.bind(
                     exported_products=saved_count,
-                    archive_path=archive_path,
+                    archive_count=len(archive_paths),
+                    archive_paths=archive_paths,
                 ).success("Database export completed")
-                return archive_path, saved_count
+                return archive_paths, saved_count
 
             return None
 
