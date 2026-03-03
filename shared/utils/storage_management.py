@@ -295,7 +295,6 @@ def _create_archives_split(
     """
     archive_paths: List[Path] = []
     current_archive_files: List[Path] = []
-    current_archive_size = 0
     archive_part_number = 1
 
     for file_path in file_paths:
@@ -305,31 +304,39 @@ def _create_archives_split(
             ).warning("File not found, skipping")
             continue
 
-        file_size = file_path.stat().st_size
-
-        # If adding this file would exceed the limit, create current archive
-        if current_archive_size + file_size > MAX_ARCHIVE_SIZE_BYTES:
-            # Create the current archive
-            archive_name = (
-                f"mobile_{timestamp}_part{archive_part_number:02d}.zip"
-            )
-            archive_path = files_dir / archive_name
-            _create_archive(current_archive_files, archive_path)
-            archive_paths.append(archive_path)
-            logger.bind(
-                service="StorageManagement",
-                archive_path=str(archive_path),
-                part_number=archive_part_number,
-                files_count=len(current_archive_files),
-            ).info("Created archive part")
-
-            # Reset for next archive
-            current_archive_files = []
-            current_archive_size = 0
-            archive_part_number += 1
-
+        # Try adding this file to the current archive
         current_archive_files.append(file_path)
-        current_archive_size += file_size
+
+        # Check actual compressed size if we have more than one file
+        if len(current_archive_files) > 1:
+            temp_archive_path = files_dir / f"_temp_check.zip"
+            _create_archive(current_archive_files, temp_archive_path)
+            archive_size = temp_archive_path.stat().st_size
+            temp_archive_path.unlink()  # Remove temp file
+
+            # If archive exceeds limit, remove the last file and create archive
+            if archive_size > MAX_ARCHIVE_SIZE_BYTES:
+                # Remove the last file from current list
+                removed_file = current_archive_files.pop()
+
+                # Create archive with remaining files
+                archive_name = (
+                    f"mobile_{timestamp}_part{archive_part_number:02d}.zip"
+                )
+                archive_path = files_dir / archive_name
+                _create_archive(current_archive_files, archive_path)
+                archive_paths.append(archive_path)
+                logger.bind(
+                    service="StorageManagement",
+                    archive_path=str(archive_path),
+                    part_number=archive_part_number,
+                    files_count=len(current_archive_files),
+                ).info("Created archive part")
+
+                archive_part_number += 1
+
+                # Start new archive with the removed file
+                current_archive_files = [removed_file]
 
     # Create final archive if there are remaining files
     if current_archive_files:
