@@ -304,13 +304,13 @@ def _create_archives_split(
     total_size = sum(f.stat().st_size for f in existing_files)
     avg_file_size = total_size / len(existing_files) if existing_files else 0
 
-    # Estimate how many files fit in 48MB (accounting for ~30% compression)
-    # Using 70% of max size since compression reduces actual archive size
-    estimated_compression_ratio = 0.7
+    # CSV files compress very well (typically to 30-35% of original size)
+    # Using 35% as conservative estimate for better packing
+    estimated_compression_ratio = 0.35
     max_files_per_archive = (
         int(
-            (MAX_ARCHIVE_SIZE_BYTES * estimated_compression_ratio)
-            / avg_file_size
+            MAX_ARCHIVE_SIZE_BYTES
+            / (avg_file_size * estimated_compression_ratio)
         )
         if avg_file_size > 0
         else len(existing_files)
