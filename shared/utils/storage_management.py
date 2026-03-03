@@ -308,10 +308,7 @@ def _create_archives_split(
         file_size = file_path.stat().st_size
 
         # If adding this file would exceed the limit, create current archive
-        if (
-            current_archive_files
-            and current_archive_size + file_size > MAX_ARCHIVE_SIZE_BYTES
-        ):
+        if current_archive_size + file_size > MAX_ARCHIVE_SIZE_BYTES:
             # Create the current archive
             archive_name = (
                 f"mobile_{timestamp}_part{archive_part_number:02d}.zip"
