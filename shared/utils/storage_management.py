@@ -300,33 +300,55 @@ def _create_archives_split(
         logger.bind(service="StorageManagement").warning("No files to archive")
         return []
 
-    # Calculate average file size for estimation
+    # Try to create a single archive with all files first
+    single_archive_name = f"mobile_{timestamp}.zip"
+    single_archive_path = files_dir / single_archive_name
+
+    _create_archive(existing_files, single_archive_path)
+    single_archive_size = single_archive_path.stat().st_size
+
+    logger.bind(
+        service="StorageManagement",
+        single_archive_size=single_archive_size,
+        max_size=MAX_ARCHIVE_SIZE_BYTES,
+    ).info("Created single archive, checking size")
+
+    # If single archive is within limit, return it
+    if single_archive_size <= MAX_ARCHIVE_SIZE_BYTES:
+        logger.bind(
+            service="StorageManagement",
+            total_archives=1,
+        ).info("Single archive within 48MB limit")
+        return [single_archive_path]
+
+    # Single archive exceeds limit - need to split
+    logger.bind(
+        service="StorageManagement",
+        single_archive_size=single_archive_size,
+    ).info("Single archive exceeds 48MB, will split")
+
+    # Remove the single archive, we'll create split ones
+    single_archive_path.unlink()
+
+    # Calculate how many files per archive based on actual compressed size
     total_size = sum(f.stat().st_size for f in existing_files)
-    avg_file_size = total_size / len(existing_files) if existing_files else 0
+    avg_compressed_size = single_archive_size / len(existing_files)
+    files_per_archive = int(MAX_ARCHIVE_SIZE_BYTES / avg_compressed_size)
+    files_per_archive = max(1, files_per_archive)
 
-    # CSV files compress very well (typically to 30-35% of original size)
-    # Using 35% as conservative estimate for better packing
-    estimated_compression_ratio = 0.35
-    max_files_per_archive = (
-        int(
-            MAX_ARCHIVE_SIZE_BYTES
-            / (avg_file_size * estimated_compression_ratio)
-        )
-        if avg_file_size > 0
-        else len(existing_files)
-    )
-
-    # Ensure at least 1 file per archive
-    max_files_per_archive = max(1, max_files_per_archive)
+    logger.bind(
+        service="StorageManagement",
+        total_files=len(existing_files),
+        files_per_archive=files_per_archive,
+    ).info("Splitting archive")
 
     archive_paths: List[Path] = []
     archive_part_number = 1
 
-    # Split files into groups based on estimated size
-    for i in range(0, len(existing_files), max_files_per_archive):
-        group = existing_files[i : i + max_files_per_archive]
+    # Split files into groups
+    for i in range(0, len(existing_files), files_per_archive):
+        group = existing_files[i : i + files_per_archive]
 
-        # Create archive with this group
         archive_name = f"mobile_{timestamp}_part{archive_part_number:02d}.zip"
         archive_path = files_dir / archive_name
         _create_archive(group, archive_path)
