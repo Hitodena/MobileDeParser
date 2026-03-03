@@ -150,6 +150,10 @@ class DatabaseService:
         )
 
     def get_all_products(self, only_marked_for_ai: bool = False) -> List[Dict]:
+        """Get all products from database - loads ALL into memory.
+
+        WARNING: For large datasets (100k+), use get_all_products_streaming() instead.
+        """
         with self.get_session() as session:
             query = session.query(self.ProductDB)
             if only_marked_for_ai:
@@ -167,6 +171,41 @@ class DatabaseService:
                 only_marked_for_ai=only_marked_for_ai,
             ).info("Filtered products from database")
             return valid_products
+
+    def get_all_products_streaming(
+        self, only_marked_for_ai: bool = False, batch_size: int = 1000
+    ):
+        """Stream products from database using yield_per for memory efficiency.
+
+        Args:
+            only_marked_for_ai: Filter products marked for AI processing
+            batch_size: Number of products to fetch per batch (default 1000)
+
+        Yields:
+            Dict: Product dictionary
+        """
+        with self.get_session() as session:
+            query = session.query(self.ProductDB)
+            if only_marked_for_ai:
+                query = query.filter(self.ProductDB.marked_for_ai.is_(True))
+
+            query = query.order_by(self.ProductDB.created_at.asc())
+
+            # Use yield_per for streaming - doesn't load all into memory
+            for db_product in query.yield_per(batch_size):
+                product_dict = self._db_to_dict(db_product)
+                if product_dict:
+                    yield product_dict
+
+    def get_products_count_streaming(
+        self, only_marked_for_ai: bool = False
+    ) -> int:
+        """Get total count without loading all products into memory."""
+        with self.get_session() as session:
+            query = session.query(self.ProductDB)
+            if only_marked_for_ai:
+                query = query.filter(self.ProductDB.marked_for_ai.is_(True))
+            return query.count()
 
     def _db_to_dict(self, db_product) -> Dict:
         images_field = (

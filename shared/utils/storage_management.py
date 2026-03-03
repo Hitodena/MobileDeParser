@@ -54,21 +54,23 @@ def read_csv_file(file_path: Path, delimiter: str = ";"):
 async def save_products_from_database(
     config: ConfigModel,
 ) -> Optional[Tuple[List[Path], int]]:
-    """Export products from database to CSV archives.
+    """Export products from database to CSV archives using streaming.
 
     Returns:
         Optional[Tuple[List[Path], int]]: List of archive paths and total saved count,
             or None if no products found.
 
     Note:
-        If the archive exceeds 48MB, it will be split into multiple archives.
+        - Uses streaming to avoid loading all products into memory
+        - If the archive exceeds 48MB, it will be split into multiple archives
     """
     from shared.services.database_service import DatabaseService
 
     db_service = DatabaseService(config)
-    db_products = db_service.get_all_products()
 
-    if not db_products:
+    # Check if any products exist
+    total_products = db_service.get_products_count_streaming()
+    if total_products == 0:
         logger.bind(service="StorageManagement").warning(
             "No products in database to export"
         )
@@ -85,21 +87,51 @@ async def save_products_from_database(
     total_saved_products = 0
 
     try:
-        total_products = len(db_products)
         logger.bind(
             service="StorageManagement",
             total_products=total_products,
             lines_limit=lines_limit,
-        ).info("Starting to save products from database")
+        ).info("Starting to save products from database (streaming)")
 
-        for i in range(0, total_products, lines_limit):
-            chunk = db_products[i : i + lines_limit]
-            chunk_number = (i // lines_limit) + 1
+        # Stream products in chunks without loading all into memory
+        current_chunk: List[Dict] = []
+        chunk_number = 0
 
+        for product in db_service.get_all_products_streaming():
+            current_chunk.append(product)
+
+            if len(current_chunk) >= lines_limit:
+                chunk_number += 1
+                filename = f"mobile_{chunk_number:03d}__{timestamp}.csv"
+                file_path = temp_dir / filename
+
+                saved_in_chunk = _save_dict_chunk_to_csv(
+                    current_chunk, file_path
+                )
+                total_saved_products += saved_in_chunk
+
+                if saved_in_chunk > 0:
+                    created_files.append(file_path)
+                    logger.bind(
+                        service="StorageManagement",
+                        chunk_number=chunk_number,
+                        saved_in_chunk=saved_in_chunk,
+                        file_path=str(file_path),
+                    ).info("Saved chunk")
+                else:
+                    logger.bind(
+                        service="StorageManagement", chunk_number=chunk_number
+                    ).warning("Chunk: no valid products to save")
+
+                current_chunk = []
+
+        # Save remaining products in the last chunk
+        if current_chunk:
+            chunk_number += 1
             filename = f"mobile_{chunk_number:03d}__{timestamp}.csv"
             file_path = temp_dir / filename
 
-            saved_in_chunk = _save_dict_chunk_to_csv(chunk, file_path)
+            saved_in_chunk = _save_dict_chunk_to_csv(current_chunk, file_path)
             total_saved_products += saved_in_chunk
 
             if saved_in_chunk > 0:
@@ -109,11 +141,7 @@ async def save_products_from_database(
                     chunk_number=chunk_number,
                     saved_in_chunk=saved_in_chunk,
                     file_path=str(file_path),
-                ).info("Saved chunk")
-            else:
-                logger.bind(
-                    service="StorageManagement", chunk_number=chunk_number
-                ).warning("Chunk: no valid products to save")
+                ).info("Saved final chunk")
 
         if not created_files:
             logger.bind(service="StorageManagement").warning(
