@@ -139,7 +139,9 @@ class MobileDeRuParser(BaseParser):
                         model=data["model"],
                         original_title=title_text,
                         cleaned_title=cleaned_title,
-                    ).debug("Title fields extracted from cleaned title successfully")
+                    ).debug(
+                        "Title fields extracted from cleaned title successfully"
+                    )
                 else:
                     if self._extract_from_original_title(title_text, data):
                         self.mobilede_logger.bind(
@@ -208,11 +210,15 @@ class MobileDeRuParser(BaseParser):
 
         return cleaned
 
-    def _extract_from_cleaned_title(self, cleaned_title: str, data: Dict) -> bool:
+    def _extract_from_cleaned_title(
+        self, cleaned_title: str, data: Dict
+    ) -> bool:
         if not cleaned_title:
             return False
 
-        words = [word.strip() for word in cleaned_title.split() if word.strip()]
+        words = [
+            word.strip() for word in cleaned_title.split() if word.strip()
+        ]
 
         if len(words) >= 2:
             data["category"] = words[0]
@@ -225,7 +231,9 @@ class MobileDeRuParser(BaseParser):
 
         return False
 
-    def _extract_from_original_title(self, title_text: str, data: Dict) -> bool:
+    def _extract_from_original_title(
+        self, title_text: str, data: Dict
+    ) -> bool:
         if not title_text:
             return False
 
@@ -314,7 +322,9 @@ class MobileDeRuParser(BaseParser):
             )
 
             if tech_fields_found:
-                self.mobilede_logger.debug("Technical fields extraction completed")
+                self.mobilede_logger.debug(
+                    "Technical fields extraction completed"
+                )
             else:
                 self.mobilede_logger.warning("No technical fields found")
 
@@ -343,7 +353,10 @@ class MobileDeRuParser(BaseParser):
                     value_text = self.extract_text_safe(dd_element).strip()
                     data_testid = dt_element.get("data-testid", "")
 
-                    if data_testid == "category-item" or "Категория" in label_text:
+                    if (
+                        data_testid == "category-item"
+                        or "Категория" in label_text
+                    ):
                         category = value_text.strip()
                         if category:
                             data["body"] = category
@@ -355,7 +368,10 @@ class MobileDeRuParser(BaseParser):
                             data["color"] = color
                         continue
 
-                    if data_testid == "doorCount-item" or "Число дверей" in label_text:
+                    if (
+                        data_testid == "doorCount-item"
+                        or "Число дверей" in label_text
+                    ):
                         door_count = value_text.strip()
                         if door_count:
                             data["door_count"] = door_count
@@ -390,7 +406,9 @@ class MobileDeRuParser(BaseParser):
             )
 
             if additional_fields_found:
-                self.mobilede_logger.debug("Additional fields extraction completed")
+                self.mobilede_logger.debug(
+                    "Additional fields extraction completed"
+                )
             else:
                 self.mobilede_logger.warning("No additional fields found")
 
@@ -404,7 +422,7 @@ class MobileDeRuParser(BaseParser):
         try:
             price_element = self.html.find(
                 "div",
-                class_="MainPriceArea_mainPrice__xCkfs typography_headlineLarge__jywu0",
+                {"data-testid": "vip-price-label"},
             )
             if price_element:
                 price_text = self.extract_text_safe(price_element)
@@ -445,7 +463,9 @@ class MobileDeRuParser(BaseParser):
 
     def _extract_images(self, data: Dict) -> None:
         try:
-            image_data_element = self.html.find("div", {"data-testid": "image-gallery"})
+            image_data_element = self.html.find(
+                "div", {"data-testid": "image-gallery"}
+            )
             img_elements = image_data_element.find_all("img")  # type: ignore
             collected_urls: List[str] = []
 
@@ -477,7 +497,9 @@ class MobileDeRuParser(BaseParser):
             dealer_found = False
             for link in links:
                 link_url = self.extract_attribute_safe(link, "href")
-                if link_url.startswith("https://home.mobile.de/home/redirect.html"):
+                if link_url.startswith(
+                    "https://home.mobile.de/home/redirect.html"
+                ):
                     data["dealer"] = link_url
                     self.mobilede_logger.bind(
                         dealer=data["dealer"],
