@@ -1,3 +1,4 @@
+import re
 from typing import Dict, List, Optional
 from urllib.parse import urljoin
 
@@ -35,7 +36,12 @@ class MobileDeRuParser(BaseParser):
 
         try:
             anchor_tags = self.html.find_all(
-                "a", class_="BaseListing_containerLink___4jHz"
+                "a",
+                attrs={
+                    "data-testid": re.compile(
+                        r"^(?:tic|base)-result-listing-\d+-link$"
+                    )
+                },
             )
 
             for anchor in anchor_tags:
